@@ -129,6 +129,7 @@ contains
       deallocate (error)
     else
       call w90_wannier90_readwrite_read(wann90%settings, wann90%atom_data, w90only%band_plot, &
+                                        common_data%cwf_parameters, &
                                         w90only%dis_control, w90only%dis_spheres, &
                                         wann90%dis_manifold, wann90%exclude_bands, &
                                         wann90%fermi_energy_list, w90only%fermi_surface_data, &
