@@ -150,8 +150,9 @@ contains
 
   !================================================!
   subroutine overlap_read(kmesh_info, select_projection, sitesym, au_matrix, &
-                          m_matrix_local, num_bands, num_kpts, num_proj, &
-                          num_wann, print_output, timing_level, cp_pp, gamma_only, lsitesymmetry, &
+                          m_matrix_local, num_bands, num_kpts, num_proj, num_wann, &
+                          cwf_parameters, eigval, &
+                          print_output, timing_level, cp_pp, gamma_only, lsitesymmetry, &
                           use_bloch_phases, seedname, stdout, timer, dist_k, error, comm)
     !================================================!
     !! Read the Mmn and Amn from files
@@ -160,7 +161,7 @@ contains
     !================================================!
 
     use w90_io, only: io_stopwatch_start, io_stopwatch_stop
-    use w90_types, only: kmesh_info_type, print_output_type, timer_list_type
+    use w90_types, only: kmesh_info_type, print_output_type, timer_list_type, cwf_parameters_type
     use w90_wannier90_types, only: select_projection_type, sitesym_type
     use w90_error
 
@@ -174,6 +175,11 @@ contains
     type(timer_list_type), intent(inout) :: timer
     type(w90_comm_type), intent(in) :: comm
     type(w90_error_type), allocatable, intent(out) :: error
+
+    ! RO
+    type(cwf_parameters_type), intent(in) :: cwf_parameters
+    real(kind=dp), pointer, intent(in) :: eigval(:, :) ! (num_bands, num_kpts)
+    ! RO
 
     integer, intent(in) :: dist_k(:)
     integer, intent(in) :: num_bands
@@ -369,6 +375,25 @@ contains
       !call comms_bcast(au_matrix(1, 1, 1), num_bands*num_wann*num_kpts, error, comm)
       !if (allocated(error)) return
 
+      ! RO
+      if (cwf_parameters%use_cwf_method) then
+
+        ! write info about CW in output
+        if (on_root) write (stdout, '(/a)') ' Multiply weight function by Amn according to the closest Wannier method : '
+        if (on_root) write (stdout,'(1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/)') &
+        'cwf_mu_max    = ', cwf_parameters%mu_max, ' eV', 'cwf_mu_min    = ', cwf_parameters%mu_min, ' eV', &
+        'cwf_sigma_max =', cwf_parameters%sigma_max, ' eV', 'cwf_sigma_min =', cwf_parameters%sigma_min, ' eV', &
+        'cwf_delta     =', cwf_parameters%delta, ' eV'
+
+        do nkp = 1, num_kpts
+          do m = 1, num_bands
+            au_matrix(m, :, nkp) = cwf_weight(eigval(m, nkp)) * au_matrix(m, :, nkp)
+          end do
+        end do
+
+      endif
+      ! RO
+
     else
 
       do n = 1, num_kpts
@@ -426,6 +451,25 @@ contains
     return
 
     !if (on_root) deallocate(m_matrix_orig)
+
+  ! RO
+  contains
+    !==================================================================!
+    function cwf_weight(e) result(f_k)
+      !==========================================================================!
+      !                                                                          !
+      ! RO: Returns the weight function according to the closest Wannier method  !
+      !                                                                          !
+      !===========================================================================
+        real(kind=dp), intent(in) :: e
+        !! Energy eigenvalue
+        real(kind=dp) :: f_k
+        !! CW weight function
+        f_k = 0.5_dp * (1.0_dp - tanh(0.5 * (e - cwf_parameters%mu_max) / cwf_parameters%sigma_max)) &
+        + 0.5_dp * (1.0_dp - tanh(0.5 * (cwf_parameters%mu_min - e) / cwf_parameters%sigma_min)) &
+        - 1.0_dp + cwf_parameters%delta
+    end function cwf_weight
+  ! RO
 
   end subroutine overlap_read
 
