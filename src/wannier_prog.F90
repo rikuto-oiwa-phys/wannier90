@@ -417,6 +417,7 @@ contains
 
     ! write simulation details
     call w90_wannier90_readwrite_write(common_data%atom_data, common_data%band_plot, &
+                                       common_data%cwf_parameters, &
                                        common_data%dis_control, common_data%dis_spheres, &
                                        common_data%fermi_energy_list, &
                                        common_data%fermi_surface_data, common_data%kpt_latt, &
@@ -504,7 +505,8 @@ contains
     if (common_data%num_bands > common_data%num_wann) then ! disentanglement case
       call overlap_read(common_data%kmesh_info, common_data%select_proj, common_data%sitesym, common_data%u_opt, &
                         common_data%m_matrix_local, common_data%num_bands, common_data%num_kpts, common_data%num_proj, &
-                        common_data%num_wann, common_data%print_output, common_data%print_output%timing_level, cp_pp, &
+                        common_data%num_wann, common_data%cwf_parameters, common_data%eigval, &
+                        common_data%print_output, common_data%print_output%timing_level, cp_pp, &
                         common_data%gamma_only, common_data%lsitesymmetry, common_data%use_bloch_phases, &
                         common_data%seedname, istdout, common_data%timer, common_data%dist_kpoints, error, &
                         common_data%comm)
@@ -523,6 +525,7 @@ contains
       call overlap_read(common_data%kmesh_info, common_data%select_proj, common_data%sitesym, &
                         common_data%u_matrix, common_data%m_matrix_local, common_data%num_bands, &
                         common_data%num_kpts, common_data%num_proj, common_data%num_wann, &
+                        common_data%cwf_parameters, common_data%eigval, &
                         common_data%print_output, common_data%print_output%timing_level, cp_pp, &
                         common_data%gamma_only, common_data%lsitesymmetry, &
                         common_data%use_bloch_phases, common_data%seedname, istdout, &
