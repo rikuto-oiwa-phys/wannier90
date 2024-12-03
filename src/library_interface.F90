@@ -655,6 +655,12 @@ contains
       if (common_data%dis_manifold%froz_min == -huge(0.0_dp)) &
         common_data%dis_manifold%froz_min = common_data%dis_manifold%win_min
     endif
+
+    ! RO
+    ! if not already initialised, set disentanglement windows in CW method to limits of spectrum
+    if (common_data%cwf_parameters%mu_min == -huge(0.0_dp)) common_data%cwf_parameters%mu_min = minval(common_data%eigval)
+    if (common_data%cwf_parameters%mu_max == huge(0.0_dp)) common_data%cwf_parameters%mu_max = maxval(common_data%eigval)
+    ! RO
   end subroutine w90_set_eigval
 
   subroutine w90_set_constant_bohr_to_ang(common_data, bohr_to_angstrom)
