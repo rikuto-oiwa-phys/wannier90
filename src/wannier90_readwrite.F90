@@ -154,9 +154,9 @@ contains
   end subroutine w90_wannier90_readwrite_read_special
 
   !================================================!
-  subroutine w90_wannier90_readwrite_read(settings, band_plot, dis_control, dis_spheres, &
-                                          dis_manifold, exclude_bands, fermi_energy_list, &
-                                          fermi_surface_data, &
+  subroutine w90_wannier90_readwrite_read(settings, band_plot, cwf_parameters, &
+                                          dis_control, dis_spheres, dis_manifold, &
+                                          exclude_bands, fermi_energy_list, fermi_surface_data, &
                                           output_file, wvfn_read, wann_control, &
                                           real_space_ham, kpoint_path, w90_system, &
                                           tran, print_output, wann_plot, w90_extra_io, ws_region, &
@@ -182,6 +182,9 @@ contains
 
     ! arguments
     type(band_plot_type), intent(inout) :: band_plot
+    ! RO
+    type(cwf_parameters_type), intent(inout) :: cwf_parameters
+    ! RO
     type(dis_control_type), intent(inout) :: dis_control
     type(dis_manifold_type), intent(inout) :: dis_manifold
     type(dis_spheres_type), intent(inout) :: dis_spheres
@@ -330,6 +333,11 @@ contains
     if (.not. (w90_calculation%transport .and. tran%read_ht)) then
       call w90_readwrite_read_dis_manifold(settings, .true., dis_manifold, error, comm)
       if (allocated(error)) return
+
+      ! RO
+      call w90_readwrite_read_cwf_parameters(settings, .true., cwf_parameters, error, comm)
+      if (allocated(error)) return
+      ! RO
 
       call w90_wannier90_readwrite_read_disentangle(settings, dis_control, dis_spheres, num_bands, &
                                                     num_wann, bohr, error, comm)
@@ -1708,7 +1716,7 @@ contains
   end subroutine w90_wannier90_readwrite_read_constrained_centres
 
   !================================================!
-  subroutine w90_wannier90_readwrite_write(atom_data, band_plot, dis_control, dis_spheres, &
+  subroutine w90_wannier90_readwrite_write(atom_data, band_plot, cwf_parameters, dis_control, dis_spheres, &
                                            fermi_energy_list, fermi_surface_data, kpt_latt, &
                                            output_file, wvfn_read, wann_control, proj, proj_input, &
                                            real_space_ham, select_proj, kpoint_path, tran, &
@@ -1736,6 +1744,9 @@ contains
     type(band_plot_type), intent(in) :: band_plot
     type(wann_control_type), intent(in) :: wann_control
     type(wannier_data_type), intent(in) :: wannier_data
+    ! RO
+    type(cwf_parameters_type), intent(in) :: cwf_parameters
+    ! RO
     type(dis_control_type), intent(in) :: dis_control
     type(dis_spheres_type), intent(in) :: dis_spheres
     type(fermi_surface_plot_type), intent(in) :: fermi_surface_data
@@ -2027,6 +2038,19 @@ contains
             dis_spheres%first_wann, '|'
         endif
         ! GS-end
+        write (stdout, '(1x,a78)') '*----------------------------------------------------------------------------*'
+      end if
+      !
+      ! RO: Closest Wannier method
+      !
+      if (cwf_parameters%use_cwf_method .or. print_output%iprint > 2) then
+        write (stdout, '(1x,a78)') '*------------------------------ CLOSESTWANNIER ------------------------------*'
+        write (stdout, '(1x,a46,10x,L8,13x,a1)') '|  Using closest Wannier disentanglement     :', cwf_parameters%use_cwf_method, '|'
+        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  lower bound of the disentanglement        :', cwf_parameters%mu_min, '|'
+        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  upper bound of the disentanglement        :', cwf_parameters%mu_max, '|'
+        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  smearing temperature for lower window     :', cwf_parameters%sigma_min, '|'
+        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  smearing temperature for upper window     :', cwf_parameters%sigma_max, '|'
+        write (stdout, '(1x,a46,8x,ES10.3,13x,a1)') '|  small constant to avoid ill-conditioning  :', cwf_parameters%delta, '|'
         write (stdout, '(1x,a78)') '*----------------------------------------------------------------------------*'
       end if
       !
