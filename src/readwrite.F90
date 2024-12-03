@@ -53,6 +53,9 @@ module w90_readwrite
   public :: w90_readwrite_clear_keywords
   public :: w90_readwrite_read_algorithm_control
   public :: w90_readwrite_read_atoms
+  ! ! RO
+  public :: w90_readwrite_read_cwf_parameters
+  ! ! RO
   public :: w90_readwrite_read_dis_manifold
   public :: w90_readwrite_read_eigvals
   public :: w90_readwrite_read_exclude_bands
@@ -719,6 +722,69 @@ contains
     endif
   end subroutine w90_readwrite_read_dis_manifold
 
+  ! RO
+  subroutine w90_readwrite_read_cwf_parameters(settings, eig_found, cwf_parameters, error, comm)
+    use w90_error, only: w90_error_type, set_error_input
+    implicit none
+
+    ! arguments
+    logical, intent(in) :: eig_found
+    type(cwf_parameters_type), intent(inout) :: cwf_parameters
+    type(w90_error_type), allocatable, intent(out) :: error
+    type(w90_comm_type), intent(in) :: comm
+    type(settings_type), intent(inout) :: settings
+
+    ! local
+    logical :: found, found2
+
+    call w90_readwrite_get_keyword(settings, 'use_cwf_method', found, error, comm, &
+                                   l_value=cwf_parameters%use_cwf_method)
+    if (allocated(error)) return
+
+    call w90_readwrite_get_keyword(settings, 'cwf_mu_min', found, error, comm, &
+                                   r_value=cwf_parameters%mu_min)
+    if (allocated(error)) return
+
+    call w90_readwrite_get_keyword(settings, 'cwf_mu_max', found, error, comm, &
+                                   r_value=cwf_parameters%mu_max)
+    if (allocated(error)) return
+
+    ! eig_found check because eigenvalue reading may reset mu_min,max limits
+    if (eig_found .and. (cwf_parameters%mu_max .lt. cwf_parameters%mu_min)) then
+      call set_error_input(error, &
+                           'Error: w90_readwrite_read_cwf_parameters: check disentanglement windows (mu_max < mu_min !)', comm)
+      return
+    endif
+
+    call w90_readwrite_get_keyword(settings, 'cwf_sigma_min', found, error, comm, &
+                                   r_value=cwf_parameters%sigma_min)
+    if (allocated(error)) return
+
+    ! check smearing temperature because sigma_min must be greater than 0.0
+    if (cwf_parameters%sigma_min .lt. 0.0_dp) then
+      call set_error_input(error, &
+                           'Error: w90_readwrite_read_cwf_parameters: check smearing temperature for lower window (sigma_min < 0.0 !)', comm)
+      return
+    endif
+
+    call w90_readwrite_get_keyword(settings, 'cwf_sigma_max', found, error, comm, &
+                                   r_value=cwf_parameters%sigma_max)
+    if (allocated(error)) return
+
+    ! check smearing temperature because sigma_min must be greater than 0.0
+    if (cwf_parameters%sigma_max .lt. 0.0_dp) then
+      call set_error_input(error, &
+                           'Error: w90_readwrite_read_cwf_parameters: check smearing temperature for upper window (sigma_max < 0.0 !)', comm)
+      return
+    endif
+
+    call w90_readwrite_get_keyword(settings, 'cwf_delta', found, error, comm, &
+                                   r_value=cwf_parameters%delta)
+    if (allocated(error)) return
+
+  end subroutine w90_readwrite_read_cwf_parameters
+! RO
+
   subroutine w90_readwrite_read_kmesh_data(settings, kmesh_input, error, comm)
     use w90_error, only: w90_error_type, set_error_input, set_error_alloc
     implicit none
@@ -985,6 +1051,13 @@ contains
     call w90_readwrite_get_keyword(settings, 'conv_tol', found, error, comm)
     call w90_readwrite_get_keyword(settings, 'conv_window', found, error, comm)
     call w90_readwrite_get_keyword(settings, 'cp_pp', found, error, comm)
+    ! RO
+    call w90_readwrite_get_keyword(settings, 'cwf_mu_max', found, error, comm)
+    call w90_readwrite_get_keyword(settings, 'cwf_mu_min', found, error, comm)
+    call w90_readwrite_get_keyword(settings, 'cwf_sigma_max', found, error, comm)
+    call w90_readwrite_get_keyword(settings, 'cwf_sigma_min', found, error, comm)
+    call w90_readwrite_get_keyword(settings, 'cwf_delta', found, error, comm)
+    ! RO
     call w90_readwrite_get_keyword(settings, 'devel_flag', found, error, comm)
     call w90_readwrite_get_keyword(settings, 'dis_conv_tol', found, error, comm)
     call w90_readwrite_get_keyword(settings, 'dis_conv_window', found, error, comm)
@@ -1071,6 +1144,9 @@ contains
     call w90_readwrite_get_keyword(settings, 'trial_step', found, error, comm)
     call w90_readwrite_get_keyword(settings, 'unlucky', found, error, comm)
     call w90_readwrite_get_keyword(settings, 'use_bloch_phases', found, error, comm)
+    ! RO
+    call w90_readwrite_get_keyword(settings, 'use_cwf_method', found, error, comm)
+    ! RO
     call w90_readwrite_get_keyword(settings, 'use_ws_distance', found, error, comm)
     call w90_readwrite_get_keyword(settings, 'wannier_plot_format', found, error, comm)
     call w90_readwrite_get_keyword(settings, 'wannier_plot', found, error, comm)
