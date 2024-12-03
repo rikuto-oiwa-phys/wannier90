@@ -68,6 +68,9 @@ module w90_library
 
     type(atom_data_type) :: atom_data
     type(band_plot_type) :: band_plot
+    ! RO
+    type(cwf_parameters_type) :: cwf_parameters
+    ! RO
     type(dis_control_type) :: dis_control
     type(dis_manifold_type) :: dis_manifold
     type(dis_spheres_type) :: dis_spheres
@@ -261,6 +264,7 @@ contains
 
     ! read all other variables
     call w90_wannier90_readwrite_read(common_data%settings, common_data%band_plot, &
+                                      common_data%cwf_parameters, &
                                       common_data%dis_control, common_data%dis_spheres, &
                                       common_data%dis_manifold, common_data%exclude_bands, &
                                       common_data%fermi_energy_list, &
@@ -328,6 +332,7 @@ contains
 
     ! set options corresponding to string array from .win file
     call w90_wannier90_readwrite_read(common_data%settings, common_data%band_plot, &
+                                      common_data%cwf_parameters, &
                                       common_data%dis_control, common_data%dis_spheres, &
                                       common_data%dis_manifold, common_data%exclude_bands, &
                                       common_data%fermi_energy_list, &
