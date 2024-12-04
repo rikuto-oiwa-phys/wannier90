@@ -229,7 +229,7 @@ module w90_types
     !! smearing temperature for lower window
     real(kind=dp) :: sigma_max = 1.0_dp
     !! smearing temperature for upper window
-    real(kind=dp) :: delta = 0.0_dp
+    real(kind=dp) :: delta = 1.0e-12_dp
     !! small constant to avoid ill-conditioning of overlap matrices
   end type cwf_parameters_type
   ! RO
