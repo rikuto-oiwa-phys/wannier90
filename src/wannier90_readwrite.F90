@@ -2045,12 +2045,12 @@ contains
       !
       if (cwf_parameters%use_cwf_method .or. print_output%iprint > 2) then
         write (stdout, '(1x,a78)') '*------------------------------ CLOSESTWANNIER ------------------------------*'
-        write (stdout, '(1x,a46,10x,L8,13x,a1)') '|  Using closest Wannier disentanglement     :', cwf_parameters%use_cwf_method, '|'
-        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  lower bound of the disentanglement        :', cwf_parameters%mu_min, '|'
-        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  upper bound of the disentanglement        :', cwf_parameters%mu_max, '|'
-        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  smearing temperature for lower window     :', cwf_parameters%sigma_min, '|'
-        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  smearing temperature for upper window     :', cwf_parameters%sigma_max, '|'
-        write (stdout, '(1x,a46,8x,ES10.3,13x,a1)') '|  small constant to avoid ill-conditioning  :', cwf_parameters%delta, '|'
+       write (stdout, '(1x,a46,10x,L8,13x,a1)') '|  Using closest Wannier method              :', cwf_parameters%use_cwf_method, '|'
+        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  Lower bound of the energy window           :', cwf_parameters%mu_min, '|'
+        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  Upper bound of the energy window           :', cwf_parameters%mu_max, '|'
+        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  Smearing temperature for the lower bound   :', cwf_parameters%sigma_min, '|'
+        write (stdout, '(1x,a46,10x,F8.3,13x,a1)') '|  Smearing temperature for the upper bound   :', cwf_parameters%sigma_max, '|'
+        write (stdout, '(1x,a46,8x,ES10.3,13x,a1)') '|  Small constant to avoid ill-conditioning   :', cwf_parameters%delta, '|'
         write (stdout, '(1x,a78)') '*----------------------------------------------------------------------------*'
       end if
       !

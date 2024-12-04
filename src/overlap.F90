@@ -380,14 +380,14 @@ contains
 
         ! write info about CW in output
         if (on_root) write (stdout, '(/a)') ' Multiply weight function by Amn according to the closest Wannier method : '
-        if (on_root) write (stdout,'(1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/)') &
-        'cwf_mu_max    = ', cwf_parameters%mu_max, ' eV', 'cwf_mu_min    = ', cwf_parameters%mu_min, ' eV', &
-        'cwf_sigma_max =', cwf_parameters%sigma_max, ' eV', 'cwf_sigma_min =', cwf_parameters%sigma_min, ' eV', &
-        'cwf_delta     =', cwf_parameters%delta, ' eV'
+        if (on_root) write (stdout, '(1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/,1x,a,f10.3,a/)') &
+          'mu_max    = ', cwf_parameters%mu_max, ' eV', 'mu_min    = ', cwf_parameters%mu_min, ' eV', &
+          'sigma_max =', cwf_parameters%sigma_max, ' eV', 'sigma_min =', cwf_parameters%sigma_min, ' eV', &
+          'delta     =', cwf_parameters%delta, ' eV'
 
         do nkp = 1, num_kpts
           do m = 1, num_bands
-            au_matrix(m, :, nkp) = cwf_weight(eigval(m, nkp)) * au_matrix(m, :, nkp)
+            au_matrix(m, :, nkp) = cwf_weight(eigval(m, nkp))*au_matrix(m, :, nkp)
           end do
         end do
 
@@ -452,7 +452,7 @@ contains
 
     !if (on_root) deallocate(m_matrix_orig)
 
-  ! RO
+    ! RO
   contains
     !==================================================================!
     function cwf_weight(e) result(f_k)
@@ -461,15 +461,15 @@ contains
       ! RO: Returns the weight function according to the closest Wannier method  !
       !                                                                          !
       !===========================================================================
-        real(kind=dp), intent(in) :: e
-        !! Energy eigenvalue
-        real(kind=dp) :: f_k
-        !! CW weight function
-        f_k = 0.5_dp * (1.0_dp - tanh(0.5 * (e - cwf_parameters%mu_max) / cwf_parameters%sigma_max)) &
-        + 0.5_dp * (1.0_dp - tanh(0.5 * (cwf_parameters%mu_min - e) / cwf_parameters%sigma_min)) &
-        - 1.0_dp + cwf_parameters%delta
+      real(kind=dp), intent(in) :: e
+      !! Energy eigenvalue
+      real(kind=dp) :: f_k
+      !! CW weight function
+      f_k = 0.5_dp*(1.0_dp - tanh(0.5*(e - cwf_parameters%mu_max)/cwf_parameters%sigma_max)) &
+            + 0.5_dp*(1.0_dp - tanh(0.5*(cwf_parameters%mu_min - e)/cwf_parameters%sigma_min)) &
+            - 1.0_dp + cwf_parameters%delta
     end function cwf_weight
-  ! RO
+    ! RO
 
   end subroutine overlap_read
 

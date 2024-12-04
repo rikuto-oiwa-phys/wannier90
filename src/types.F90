@@ -220,15 +220,15 @@ module w90_types
     !! Contains information about the parameters used in the clost Wannier method.
     !!==================================================
     logical :: use_cwf_method = .false.
-    !! whether to use CW method
+    !! whether to use clost Wannier method
     real(kind=dp) :: mu_min = -huge(0.0_dp)
-    !! lower bound of the disentanglement in CW method
+    !! lower bound of the energy window
     real(kind=dp) :: mu_max = huge(0.0_dp)
-    !! upper bound of the disentanglement in CW method
+    !! upper bound of the energy window
     real(kind=dp) :: sigma_min = 0.0_dp
-    !! smearing temperature for lower window
+    !! smearing temperature for the lower bound of the energy window
     real(kind=dp) :: sigma_max = 1.0_dp
-    !! smearing temperature for upper window
+    !! smearing temperature for the upper bound of the energy window
     real(kind=dp) :: delta = 1.0e-12_dp
     !! small constant to avoid ill-conditioning of overlap matrices
   end type cwf_parameters_type
