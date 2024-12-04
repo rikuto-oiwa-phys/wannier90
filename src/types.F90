@@ -214,13 +214,13 @@ module w90_types
   end type dis_manifold_type
 
   ! RO
-  ! this contains parameters which used in the clost Wannier method
+  ! this contains parameters which used in the closest Wannier method
   type cwf_parameters_type
     !!==================================================
-    !! Contains information about the parameters used in the clost Wannier method.
+    !! Contains information about the parameters used in the closest Wannier method.
     !!==================================================
     logical :: use_cwf_method = .false.
-    !! whether to use clost Wannier method
+    !! whether to use closest Wannier method
     real(kind=dp) :: mu_min = -huge(0.0_dp)
     !! lower bound of the energy window
     real(kind=dp) :: mu_max = huge(0.0_dp)
