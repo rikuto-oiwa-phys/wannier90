@@ -478,8 +478,8 @@ inputs_args = ('wannier.win', '')
 output = wannier.werr
 min_nprocs = 2
 
-# Test of symmetry adapted WFs with disentnanglement
-[testw90_cwf_silicon]
+# Test of closest Wannier functions for silicon
+[testw90_cwf_si]
 program = WANNIER90_WOUT_OK
 inputs_args = ('silicon.win', '')
 output = silicon.wout
