@@ -484,6 +484,12 @@ program = WANNIER90_WOUT_OK
 inputs_args = ('silicon.win', '')
 output = silicon.wout
 
+# Test of closest Wannier functions for tellurium
+[testw90_cwf_te]
+program = WANNIER90_WOUT_OK
+inputs_args = ('Te.win', '')
+output = Te.wout
+
 [categories]
 wannier_only = testw90_*
 postw90_only = testpostw90_*
