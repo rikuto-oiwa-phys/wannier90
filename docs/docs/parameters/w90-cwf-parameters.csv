@@ -1,0 +1,7 @@
+Keyword,Type,Description
+use_cwf_method,L,"To activate closest Wannier method"
+cwf_mu_min,P,"Bottom of the energy window"
+cwf_mu_max,P,"Top of the energy window"
+cwf_sigma_min,P,"Smearing temperature for the bottom of the energy window"
+cwf_sigma_max,P,"Smearing temperature for the top of the energy window"
+cwf_delta,R,"Small constant to avoid ill-conditioning of overlap matrices"

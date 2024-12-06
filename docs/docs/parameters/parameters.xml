@@ -362,6 +362,36 @@
     <type>P</type>
     <description>The centres to which the objective WFs are to be constrained</description>
   </parameter>
+  <parameter tool="w90" group="cwf">
+    <name>use_cwf_method</name>
+    <type>L</type>
+    <description>To activate closest Wannier method</description>
+  </parameter>
+  <parameter tool="w90" group="cwf">
+    <name>cwf_mu_min</name>
+    <type>P</type>
+    <description>Bottom of the energy window</description>
+  </parameter>
+  <parameter tool="w90" group="cwf">
+    <name>cwf_mu_max</name>
+    <type>P</type>
+    <description>Top of the energy window</description>
+  </parameter>
+  <parameter tool="w90" group="cwf">
+    <name>cwf_sigma_min</name>
+    <type>P</type>
+    <description>Smearing temperature for the bottom of the energy window</description>
+  </parameter>
+  <parameter tool="w90" group="cwf">
+    <name>cwf_sigma_max</name>
+    <type>P</type>
+    <description>Smearing temperature for the top of the energy window</description>
+  </parameter>
+  <parameter tool="w90" group="cwf">
+    <name>cwf_delta</name>
+    <type>R</type>
+    <description>Small constant to avoid ill-conditioning of overlap matrices</description>
+  </parameter>
   <parameter tool="w90" group="plot">
     <name>wannier_plot</name>
     <type>L</type>

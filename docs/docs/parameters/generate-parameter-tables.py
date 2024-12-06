@@ -9,6 +9,7 @@ groups = {
         'system',
         'transport',
         'wannierise',
+        'cwf',
     ],
     'postw90': [
         'berry',
