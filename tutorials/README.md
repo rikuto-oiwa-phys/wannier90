@@ -80,3 +80,7 @@ tutorial33: BC2N - Expansion coefficients for kdotp bands
 tutorial34: Graphene - Projectability-disentangled Wannier functions
 
 tutorial35: Silicon - Projectability-disentangled Wannier functions with custom projection functions
+
+tutorial36: Silicon - Closest Wannier functions
+
+tutorial37: Silicon - CWFs parameters from projectability
