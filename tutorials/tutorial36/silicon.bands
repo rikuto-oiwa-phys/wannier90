@@ -1,0 +1,40 @@
+&control
+    calculation     =  'bands'
+    restart_mode    =  'from_scratch'
+    prefix          =  'silicon'
+    tprnfor         =  .true.
+    pseudo_dir      =  '../../pseudo/'
+    outdir          =  './out/'
+    iprint          =   2
+    etot_conv_thr   =   2.0000000000d-05
+    forc_conv_thr   =   1.0000000000d-04
+/
+ &system
+    ibrav           =   2
+    celldm(1)       =  10.2
+    nat             =   2
+    ntyp            =   1
+    ecutwfc         = 40.0
+    nbnd            = 12
+/
+ &electrons
+    mixing_beta     =  0.3
+    conv_thr        =  1.0e-12
+    diagonalization =  'cg'
+    diago_full_acc = .true.
+/
+ATOMIC_SPECIES
+Si     28.085 Si.pbe-n-van.UPF
+ATOMIC_POSITIONS {crystal}
+Si   0.00   0.00    0.00
+Si  -0.25   0.75   -0.25
+K_POINTS {crystal_b}
+8
+0.0000000000  0.0000000000  0.0000000000  50
+0.5000000000  0.0000000000  0.5000000000  50
+0.6250000000  0.2500000000  0.6250000000  1
+0.3750000000  0.3750000000  0.7500000000  50
+0.0000000000  0.0000000000  0.0000000000  50
+0.5000000000  0.5000000000  0.5000000000  50
+0.5000000000  0.2500000000  0.7500000000  50
+0.5000000000  0.0000000000  0.5000000000  50
