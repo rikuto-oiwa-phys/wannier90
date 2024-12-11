@@ -11,7 +11,6 @@
     are obtained by fitting a window function to the projectabilities (See Ref. [@Vitale2019automated]).
     The number of CWFs is given by the number of PAOs in the
     pseudopotential, $8$ in this case.
-    For more details on the closest Wannier method, see Ref.[@ozaki-prb24].
 
 - Directory: `tutorials/tutorial37/` *Files can be downloaded from
     [here](https://github.com/wannier-developers/wannier90/tree/develop/tutorials/tutorial37)*

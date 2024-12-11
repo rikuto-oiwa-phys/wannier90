@@ -4,7 +4,7 @@
     the Wannier interpolated band structure of
     bulk crystalline silicon based on the closest Wannier method
     using hydrogenic atomic $s$ and $p$ orbitals.
-    For more details on the closest Wannier method, see Ref.[@ozaki-prb24].
+    For the detail of the theoretical background, see Ref.[@ozaki-prb24].
 
 - Directory: `tutorials/tutorial36/` *Files can be downloaded from
     [here](https://github.com/wannier-developers/wannier90/tree/develop/tutorials/tutorial36)*
@@ -79,7 +79,7 @@
     use_cwf_method = .true.
     ```
 
-    Following the closeset Wannier method, the overlap between Bloch states and
+    Following the closest Wannier method, the overlap between Bloch states and
     the projections is multiplied by the window function $w(\varepsilon)$
     (See Eq. (4) in Ref. [@ozaki-prb24]):
     $$
@@ -94,8 +94,10 @@
     $$
     where $\mu_{\rm min}$ and $\mu_{\rm max}$ ($\mu_{\rm min} < \mu_{\rm max}$)
     represent the bottom and top of the energy window, and
-    $\sigma_{\rm min}$ and $\sigma_{\rm max}$ are introduced to control
+    $\sigma_{\rm min}$ and $\sigma_{\rm max}$ control
     the degree of smearing around $\mu_{\rm min}$ and $\mu_{\rm max}$.
+    $\delta$ is a small constant introduced to prevent the matrix
+    consisting of $A_{mn}^{(\bf{k})}$ from becoming ill-conditioned.
 
     $\mu_{\rm max}$, $\mu_{\rm min}$, $\sigma_{\rm max}$, $\sigma_{\rm min}$, and
     $\delta$ can be specified in `silicon.win`
@@ -108,16 +110,9 @@
     cwf_delta     = 1e-12
     ```
 
-    As a result of the smearing given by Eq. (2),
-    all Bloch states are incorporated into
-    the projection with specific weights, where the weight is
-    particularly large inside the window
-    ($\mu_{\rm min} < \varepsilon_{m\bf{k}} < \mu_{\rm max}$),
-    whereas it is small outside of the window.
-    $\delta$ is a small constant introduced to prevent the matrix
-    consisting of $A_{mn}^{(\bf{k})}$ from becoming ill-conditioned.
-
-    The unitary matrix is obtained by
+    Note that the disentanglement of bands is naturally
+    taken into account by introducing a window function.
+    The unitary matrix is then obtained by
     $\mathbf{U}^{(\mathbf{k})} = \mathbf{A}^{(\bf{k})}
     (\mathbf{A}^{(\bf{k}) \dagger} \mathbf{A}^{(\bf{k})})^{-1/2}$
     without iterative calculations for disentanglment of bands
@@ -128,8 +123,6 @@
     num_iter     = 0
     ```
 
-    Note that the disentanglement of bands is naturally
-    taken into account by introducing a window function.
     By properly choosing $\mu_{\rm min}$, $\mu_{\rm max}$,
     $\sigma_{\rm min}$, $\sigma_{\rm max}$, and $\delta$,
     one can obtain the Wannier functions *closest* to the initial guesses in
@@ -207,5 +200,5 @@
 - Recompute the CWFs with different free parameters and
   note how the spreads and accuracy of the interpolation change.
   The procedure for automatically determining the free parameters
-  by using pseudo-atomic orbitals in pseudopotential is demonstrated
+  by using pseudo-atomic orbitals in the pseudopotential is demonstrated
   in `tutorials/tutorial37/`.
