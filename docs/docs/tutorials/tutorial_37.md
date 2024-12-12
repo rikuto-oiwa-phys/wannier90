@@ -31,8 +31,6 @@
 
     - `plot_band.gnu` *The gnuplot script to compare DFT and Wannier bands*
 
-    - `fit_cwf_parameters.py` *The python code to fit a window function to the projectabilities*
-
 &nbsp;
 
 1. Run `pw.x` to obtain the ground state of silicon
@@ -93,7 +91,7 @@
     \end{equation}
     $$
 
-    Run `fit_cwf_parameters.py` to obtain the optimal free parameters,
+    Run `optimize_cwf_parameters.py` script to obtain the optimal free parameters,
     $\mu_{\rm max}^{\rm opt}
     = \mu_{\rm max}^{\rm fit} - 3 \sigma_{\rm max}^{\rm opt}$,
     $\mu_{\rm min}^{\rm opt}$, $\sigma_{\rm max}^{\rm opt}$,
@@ -101,10 +99,10 @@
     (See Ref. [@Vitale2019automated])
 
     ```bash title="Terminal"
-    python ./fit_cwf_parameters.py silicon
+    ../../utility/optimize_cwf_parameters.py silicon
     ```
 
-    The optimal free parameters are written in `cwf_parameters.txt` file as
+    The optimal free parameters are written in `cwf_parameters.dat` file as
 
     ```bash title="Terminal"
     # Optimized parameters:
