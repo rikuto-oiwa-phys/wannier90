@@ -51,7 +51,7 @@ test:
 	$(MPI_CMD) pw.x < silicon.nscf > nscf.out
 	wannier90.x -pp silicon
 	$(MPI_CMD) pw2wannier90.x < silicon.pw2wan > pw2wan.out
-	../../utility/optimize_cwf_parameters.py silicon
+	../../utility/fit_cwf_parameters.py silicon
 	MUMAX=`grep 'cwf_mu_max' cwf_parameters.dat | awk '{print $$3}'` ; \
 	MUMIN=`grep 'cwf_mu_min' cwf_parameters.dat | awk '{print $$3}'` ; \
 	SIGMAX=`grep 'cwf_sigma_max' cwf_parameters.dat | awk '{print $$3}'` ; \

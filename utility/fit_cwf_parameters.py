@@ -11,8 +11,8 @@
 #
 # https://github.com/wannier-developers/wannier90
 #
-# Python3 script to optimize the CWFs free parameters
-# based on the projectabilities calculated by Amn matrices.
+# Python3 script to fit the parameters for the closest Wannier method
+# using the projectabilities calculated by Amn matrices.
 # This method can be used if the pseudo-atomic orbitals (PAOs)
 # are used for the initial guesses.
 # For the detail of the theoretical background,
@@ -100,9 +100,9 @@ def cwf_window_function(e, mu_min, mu_max, sigma_min, sigma_max):
 
 
 # ==================================================
-def optimize_cwf_parameters(seedname):
+def fit_cwf_parameters(seedname):
     """
-    optimize the CWF free parameters
+    fit the parameters for the closest Wannier method
     using the projectability of each Kohn-Sham state in k-space.
 
     Args:
@@ -185,5 +185,5 @@ def optimize_cwf_parameters(seedname):
 # ==================================================
 if __name__ == "__main__":
     seedname = sys.argv[1]
-    optimize_cwf_parameters(seedname)
+    fit_cwf_parameters(seedname)
 

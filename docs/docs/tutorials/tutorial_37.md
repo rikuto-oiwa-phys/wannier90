@@ -91,7 +91,7 @@
     \end{equation}
     $$
 
-    Run `optimize_cwf_parameters.py` script to obtain the optimal free parameters,
+    Run `fit_cwf_parameters.py` script to obtain the optimal free parameters,
     $\mu_{\rm max}^{\rm opt}
     = \mu_{\rm max}^{\rm fit} - 3 \sigma_{\rm max}^{\rm opt}$,
     $\mu_{\rm min}^{\rm opt}$, $\sigma_{\rm max}^{\rm opt}$,
@@ -99,7 +99,7 @@
     (See Ref. [@Vitale2019automated])
 
     ```bash title="Terminal"
-    ../../utility/optimize_cwf_parameters.py silicon
+    ../../utility/fit_cwf_parameters.py silicon
     ```
 
     The optimal free parameters are written in `cwf_parameters.dat` file as
