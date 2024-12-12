@@ -1,10 +1,30 @@
-import sys
+#! /usr/bin/env python3
+#
+# This file is distributed as part of the Wannier90 code and
+# under the terms of the GNU General Public License. See the
+# file `LICENSE' in the root directory of the Wannier90
+# distribution, or http://www.gnu.org/copyleft/gpl.txt
+#
+# The webpage of the Wannier90 code is www.wannier.org
+#
+# The Wannier90 code is hosted on GitHub:
+#
+# https://github.com/wannier-developers/wannier90
+#
+# Python3 script to optimize the CWFs free parameters
+# based on the projectabilities calculated by Amn matrices.
+# For the detail of the theoretical background,
+# see npj Comput. Mater. 6, 66 (2020).
+#
+# Written by Rikuto Oiwa (RIKEN)
+# Last update December 11th, 2024
+#
 import os
-import numpy as np
+import sys
 import lmfit
+import numpy as np
 
 cwd = os.getcwd()
-
 
 # ==================================================
 def read_eig(seedname):
@@ -12,12 +32,13 @@ def read_eig(seedname):
     read seedname.eig file.
 
     Args:
-        seedname (str, optional): seedname.
+        seedname (str): seedname.
 
     Returns:
         ndarray: Kohn-Sham energies, E_{n}^{k}.
     """
     file_name = cwd + "/" + seedname + ".eig"
+
     if os.path.exists(file_name):
         with open(file_name) as fp:
             eig_data = fp.readlines()
@@ -40,12 +61,13 @@ def read_amn(seedname):
     read seedname.amn file.
 
     Args:
-        seedname (str, optional): seedname.
+        seedname (str): seedname.
 
     Returns:
         ndarray: Overlap matrix elements, A_{mn}^{k}.
     """
     file_name = cwd + "/" + seedname + ".amn"
+
     if os.path.exists(file_name):
         with open(file_name) as fp:
             amn_data = fp.readlines()
@@ -60,11 +82,12 @@ def read_amn(seedname):
 
 
 # ==================================================
-def fermi_dist_func(x, kbT):
+def fermi_dist_func(e, kbT):
+    """Returns the Fermi-dirac distribution function"""
     if kbT == 0.0:
-        return 1.0 * np.vectorize(float)(x < 0.0)
+        return 1.0 * np.vectorize(float)(e < 0.0)
 
-    return 0.5 * (1.0 - np.tanh(0.5 * x / kbT))
+    return 0.5 * (1.0 - np.tanh(0.5 * e / kbT))
 
 
 # ==================================================
@@ -75,27 +98,26 @@ def cwf_window_function(e, mu_min, mu_max, sigma_min, sigma_max):
 
 
 # ==================================================
-def optimize_params(seedname):
+def optimize_cwf_parameters(seedname):
     """
-    optimize the energy windows and smearing temperatures
-    by using the projectability of each Kohn-Sham state in k-space.
+    optimize the CWF free parameters
+    using the projectability of each Kohn-Sham state in k-space.
 
     Args:
         seedname (str, optional): seedname.
     """
     Ek = read_eig(seedname)
     Ak = read_amn(seedname)
-
-    num_k, num_bands, num_wann = Ak.shape
-
     # projectability of each Kohn-Sham state in k-space.
     Pk = np.real(np.diagonal(Ak @ Ak.transpose(0, 2, 1).conjugate(), axis1=1, axis2=2))
+
+    num_k, num_bands, num_wann = Ak.shape
 
     ek = Ek.reshape(num_k * num_bands)
     pk = Pk.reshape(num_k * num_bands)
 
     # normalize
-    pk = pk / np.max(pk)
+    # pk = pk / np.max(pk)
 
     model = lmfit.Model(cwf_window_function)
     params = lmfit.Parameters()
@@ -121,37 +143,45 @@ def optimize_params(seedname):
 
     result = model.fit(pk, params, e=ek)
 
-    mu_min_opt = result.params["mu_min"].value
+    mu_min_fit = result.params["mu_min"].value
     mu_max_fit = result.params["mu_max"].value
-    sigma_min_opt = result.params["sigma_min"].value
-    sigma_max_opt = result.params["sigma_max"].value
+    sigma_min_fit = result.params["sigma_min"].value
+    sigma_max_fit = result.params["sigma_max"].value
 
-    mu_max_opt = mu_max_fit - 3.0 * sigma_max_opt
+    # See npj Comput. Mater. 74, 195118 (2006)
+    mu_min_opt = mu_min_fit
+    mu_max_opt = mu_max_fit - 3.0 * sigma_max_fit
+    sigma_min_opt = sigma_min_fit
+    sigma_max_opt = sigma_max_fit
 
     msg = "# Optimized parameters: \n"
-    msg += f"cwf_mu_max       = {mu_max_opt} = mu_max_fit - 3*sigma_max_opt \n"
+    msg += f"cwf_mu_max       = {mu_max_opt} (mu_max_fit - 3*sigma_max_fit) \n"
     msg += f"cwf_mu_min       = {mu_min_opt}  \n"
     msg += f"cwf_sigma_max    = {sigma_max_opt}  \n"
     msg += f"cwf_sigma_min    = {sigma_min_opt} \n"
-    
-    f = open('cwf_parameters.txt', 'w')
+
+    f = open('cwf_parameters.dat', 'w')
     f.write(msg)
     f.close()
-    
-    print(msg)
 
-    msg = "# energy [eV]   projectability   window function (fit)  window function (opt)\n"
+    msg = "# energy [eV]           projectability        window func. (fit)    window func. (opt) \n"
     for ekn, pkn in zip(ek, pk):
         wkn_fit = cwf_window_function(ekn, mu_min_opt, mu_max_fit, sigma_min_opt, sigma_max_opt)
         wkn_opt = cwf_window_function(ekn, mu_min_opt, mu_max_opt, sigma_min_opt, sigma_max_opt)
-        msg += f"{ekn}   {pkn}   {wkn_fit}   {wkn_opt} \n"
+        msg += " {0[0]:18.15f}    {0[1]:18.15f}    {0[2]:18.15f}    {0[2]:18.15f} \n".format([ekn, pkn, wkn_fit, wkn_opt])
 
     f = open('p_w_vs_e.dat', 'w')
     f.write(msg)
     f.close()
 
+    msg = "optimal parameters are written in cwf_parameters.dat file. \n"
+    msg += "projectabilities and the fitting window function are written in p_w_vs_e.dat file. \n"
+
+    print(msg)
+
 
 # ==================================================
 if __name__ == "__main__":
     seedname = sys.argv[1]
-    optimize_params(seedname)
+    optimize_cwf_parameters(seedname)
+
