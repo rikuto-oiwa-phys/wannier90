@@ -13,6 +13,8 @@
 #
 # Python3 script to optimize the CWFs free parameters
 # based on the projectabilities calculated by Amn matrices.
+# This method can be used if the pseudo-atomic orbitals (PAOs)
+# are used for the initial guesses.
 # For the detail of the theoretical background,
 # see npj Comput. Mater. 6, 66 (2020).
 #
