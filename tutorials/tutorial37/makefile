@@ -1,7 +1,7 @@
 outfiles := CRASH \
 bands.out \
 bandsx.out \
-cwf_parameters.txt \
+cwf_parameters.dat \
 nscf.out \
 out/ \
 pw2wan.out \
@@ -32,7 +32,6 @@ silicon.pw2wan \
 silicon.scf \
 silicon.win \
 plot_band.gnu \
-fit_cwf_parameters.py
 
 default:
 	@echo "Usage: make clean"
@@ -52,15 +51,15 @@ test:
 	$(MPI_CMD) pw.x < silicon.nscf > nscf.out
 	wannier90.x -pp silicon
 	$(MPI_CMD) pw2wannier90.x < silicon.pw2wan > pw2wan.out
-	python ./fit_cwf_parameters.py silicon
-	MUMAX=`grep 'cwf_mu_max' cwf_parameters.txt | awk '{print $$3}'` ; \
-	MUMIN=`grep 'cwf_mu_min' cwf_parameters.txt | awk '{print $$3}'` ; \
-	SIGMAX=`grep 'cwf_sigma_max' cwf_parameters.txt | awk '{print $$3}'` ; \
-	SIGMIN=`grep 'cwf_sigma_min' cwf_parameters.txt | awk '{print $$3}'` ; \
-	sed -i'' "s/^cwf_mu_max.*$$/cwf_mu_max       = $${MUMAX}/" silicon.win ; \
-	sed -i'' "s/^cwf_mu_min.*$$/cwf_mu_min       = $${MUMIN}/" silicon.win ; \
-	sed -i'' "s/^cwf_sigma_max.*$$/cwf_sigma_max    = $${SIGMAX}/" silicon.win ; \
-	sed -i'' "s/^cwf_sigma_min.*$$/cwf_sigma_min    = $${SIGMIN}/" silicon.win ; \
-	$(MPI_CMD) wannier90.x silicon
+	../../utility/optimize_cwf_parameters.py silicon
+	MUMAX=`grep 'cwf_mu_max' cwf_parameters.dat | awk '{print $$3}'` ; \
+	MUMIN=`grep 'cwf_mu_min' cwf_parameters.dat | awk '{print $$3}'` ; \
+	SIGMAX=`grep 'cwf_sigma_max' cwf_parameters.dat | awk '{print $$3}'` ; \
+	SIGMIN=`grep 'cwf_sigma_min' cwf_parameters.dat | awk '{print $$3}'` ; \
+        sed -i '' "s/^cwf_mu_max.*$$/cwf_mu_max     = $${MUMAX}/" silicon.win ; \
+	sed -i '' "s/^cwf_mu_min.*$$/cwf_mu_min     = $${MUMIN}/" silicon.win ; \
+	sed -i '' "s/^cwf_sigma_max.*$$/cwf_sigma_max  = $${SIGMAX}/" silicon.win ; \
+	sed -i '' "s/^cwf_sigma_min.*$$/cwf_sigma_min  = $${SIGMIN}/" silicon.win ; \
+        $(MPI_CMD) wannier90.x silicon
 	./plot_band.gnu
 	@echo "All calculations finished successfully"
