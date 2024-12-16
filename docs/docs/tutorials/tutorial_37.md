@@ -3,12 +3,12 @@
 - Outline: Compute the closest Wannier functions (CWFs) and
     the Wannier interpolated band structure of
     bulk crystalline silicon based on the closest Wannier method
-    using pseudo-atomic orbitals (PAOs).
+    using pseudo-atomic orbitals (PAOs) in pseudopotential file.
     Similar to the SCDM method (see Tutorial [27](tutorial_27.md)
     and Tutorial [32](tutorial_32.md) for more details),
     the free parameters in the closest Wannier method, i.e.,
-    $\mu_{\rm min}$, $\mu_{\rm max}$, $\sigma_{\rm min}$, $\sigma_{\rm max}$
-    are obtained by fitting a window function to the projectabilities (See Ref. [@Vitale2019automated]).
+    $\mu_{\rm min}$, $\mu_{\rm max}$, $\sigma_{\rm min}$, $\sigma_{\rm max}$,
+    are determined automatically by fitting a window function to the projectabilities (See Ref. [@Vitale2019automated]).
     The number of CWFs is given by the number of PAOs in the
     pseudopotential, $8$ in this case.
 
@@ -65,7 +65,22 @@
     wannier90.x -pp silicon
     ```
 
-6. Run `pw2wannier90.x` to compute the overlap between Bloch states and
+6. In order to use the PAOs in the pseudopotential file for the projections,
+   one need to specify `atom_proj = .true.` in the input file for `pw2wannier90.x`.
+
+    ```vi title="Input file"
+    &INPUTPP
+        outdir     =  './out/'
+        prefix     =  'silicon'
+        seedname   =  'silicon'
+        write_amn  = .true.
+        write_mmn  = .true.
+        !write_unk  = .true.
+        atom_proj = .true.
+    /
+    ```
+
+7. Run `pw2wannier90.x` to compute the overlap between Bloch states and
     the projections for the starting guess (written in the `silicon.mmn`
     and `silicon.amn` files).
 
@@ -73,7 +88,7 @@
     pw2wannier90.x < silicon.pw2wan > pw2wan.out
     ```
 
-7. Fit the projectabilities with the window function
+8. Fit the projectabilities with the window function
     $$
     \begin{align}
     & w(\varepsilon;\mu_{\rm max}, \mu_{\rm min}, \sigma_{\rm max}, \sigma_{\rm min})
@@ -131,7 +146,7 @@
     </figcaption>
     </figure>
 
-8. Open `silicon.win` and modify the following lines
+9. Open `silicon.win` and modify the following lines
 
     ```vi title="Input file"
     cwf_mu_max    = 10    => 5.235886133629259
@@ -140,7 +155,7 @@
     cwf_sigma_min = 0.0   => 2.4638829865253342e-08
     ```
 
-9. Run `wannier90.x` to compute the CWFs.
+10. Run `wannier90.x` to compute the CWFs.
 
     ```bash title="Terminal"
     wannier90.x silicon
@@ -149,9 +164,11 @@
     Inspect the output file `silicon.wout`.
     The CWFs are obtained without any iterative calculations,
     significantly reducing the computational costs.
+    In addition, the band interpolation quality of the closest Wannier method
+    is better than that of the MLWFs method.
     On the other hand, the spreads of the CWFs are larger than the MLWFs.
 
-10. Run `gnuplot` to compare DFT and Wannier-interpolated bands, this
+11. Run `gnuplot` to compare DFT and Wannier-interpolated bands, this
     will generate a PDF file `silicon_band.pdf`, see
     Fig.[Bands comparison](#fig:silicon_band_pao).
 
@@ -167,7 +184,7 @@
     </figcaption>
     </figure>
 
-11. (Optional) Clean up all output files
+12. (Optional) Clean up all output files
 
     ```bash title="Terminal"
     make clean
@@ -188,3 +205,25 @@
     !wannier_plot = .true.
     !wannier_plot_supercell = 3
     ```
+
+- Recalculate CWFs using PAOs in `tutorials/tutorial_35/ext_proj/Si.dat`,
+  including 3d projectors.
+  Change the number of bands in `silicon.nscf`
+    ```vi title="Input file"
+  nbnd = 12 => 40
+  ```
+  and
+  `silicon.win`
+  ```vi title="Input file"
+  num_bands = 12 => 40
+  ```
+  Change the number of Wannier functions in `silicon.win`
+  ```vi title="Input file"
+  num_wann = 8 => 18
+  ```
+  Add the following lines in `silicon.pw2wan`
+  ```vi title="Input file"
+  atom_proj_ext = .true.
+  atom_proj_dir = '../tutorial35/ext_proj'
+  ```
+  Recompute 1 ~ 12 step.
