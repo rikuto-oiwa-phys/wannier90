@@ -230,8 +230,9 @@ contains
     call overlap_read(common_data%kmesh_info, common_data%select_proj, common_data%u_matrix_opt, &
                       common_data%m_matrix_local, common_data%num_bands, common_data%num_kpts, &
                       common_data%num_proj, common_data%num_wann, common_data%cwf_parameters, &
-                      common_data%eigval, &common_data%print_output, common_data%print_output%timing_level, &
-                      cp_pp, common_data%use_bloch_phases, common_data%seedname, istdout, common_data%timer, &common_data%dist_kpoints, error, common_data%comm)
+                      common_data%eigval, common_data%print_output, common_data%print_output%timing_level, &
+                      cp_pp, common_data%use_bloch_phases, common_data%seedname, istdout, common_data%timer, &
+                      common_data%dist_kpoints, error, common_data%comm)
     if (allocated(error)) then
       call prterr(error, ierr, istdout, istderr, common_data%comm)
       return
