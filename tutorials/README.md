@@ -81,6 +81,8 @@ tutorial34: Graphene - Projectability-disentangled Wannier functions
 
 tutorial35: Silicon - Projectability-disentangled Wannier functions with custom projection functions
 
-tutorial36: Silicon - Closest Wannier functions
+tutorial36: Silicon - Comparison of Marzari-Vanderbilt and Stengel-Spaldin functionals
 
-tutorial37: Silicon - CWFs parameters from projectability
+tutorial38: Silicon - Closest Wannier functions
+
+tutorial39: Silicon - CWFs parameters from projectability

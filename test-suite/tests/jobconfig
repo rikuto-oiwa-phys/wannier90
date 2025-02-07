@@ -34,6 +34,27 @@ program = WANNIER90_BANDS_PLOT
 inputs_args = ('silicon.win', '')
 output = silicon_band.dat
 
+# Silicon, 4 valence bands + 4 conduction bands; interpolated bandstructure on the explicitly set kpath,
+# checking the labelinfo.dat file
+[testw90_example03_explicit_kpath_labelinfo]
+program = WANNIER90_LABELINFO
+inputs_args = ('silicon.win', '')
+output = silicon_band.labelinfo.dat
+
+# Silicon, 4 valence bands + 4 conduction bands; interpolated bandstructure on the explicitly set kpath,
+# checking the band.dat file
+[testw90_example03_explicit_kpath_bands_plot]
+program = WANNIER90_BANDS_PLOT
+inputs_args = ('silicon.win', '')
+output = silicon_band.dat
+
+# Silicon, 4 valence bands + 4 conduction bands; interpolated bandstructure on the explicitly set kpath,
+# checking the band.kpt file
+[testw90_example03_explicit_kpath_band_kpt]
+program = WANNIER90_BAND_KPT
+inputs_args = ('silicon.win', '')
+output = silicon_band.kpt
+
 # Copper, states around the Fermi level; Fermi surface
 [testw90_example04]
 program = WANNIER90_WOUT_OK
@@ -70,6 +91,12 @@ output = silicon.wout
 
 # Silicon, valence and conduction states
 [testw90_example11_2/]
+program = WANNIER90_WOUT_OK
+inputs_args = ('silicon.win', '')
+output = silicon.wout
+
+# Silicon, Stengel-Spaldin functional
+[testw90_example36/]
 program = WANNIER90_WOUT_OK
 inputs_args = ('silicon.win', '')
 output = silicon.wout
@@ -118,6 +145,13 @@ output = wannier.nnkp
 
 # Test for the wannier position matrix elements and spreads using higher-order finite difference
 [testw90_knbo3_higher/]
+program = WANNIER90_WOUT_OK
+inputs_args = ('knbo3.win', '')
+output = knbo3.wout
+
+# Test for the wannier position matrix elements and spreads using higher-order finite difference
+# with Stengel-Spaldin Functional and guiding_centres
+[testw90_knbo3_higher_stengel_spaldin/]
 program = WANNIER90_WOUT_OK
 inputs_args = ('knbo3.win', '')
 output = knbo3.wout
@@ -256,6 +290,18 @@ output = Fe-ahc-fermiscan.dat
 
 # Test of Orbital Magnetisation for bcc iron
 [testpostw90_fe_morb/]
+program = POSTW90_WPOUT_OK
+inputs_args = ('Fe.win', '')
+output = Fe.wpout
+
+# Test of Translation Invariant Computation of Orbital Magnetisation for bcc iron
+[testpostw90_fe_morb_transl_inv/]
+program = POSTW90_WPOUT_OK
+inputs_args = ('Fe.win', '')
+output = Fe.wpout
+
+# Test of Translation Invariant Computation of Orbital Magnetisation for bcc iron with higher order
+[testpostw90_fe_morb_transl_inv_higher/]
 program = POSTW90_WPOUT_OK
 inputs_args = ('Fe.win', '')
 output = Fe.wpout
@@ -441,6 +487,12 @@ program = POSTW90_SHCFREQDAT_OK
 inputs_args = ('Pt.win', '')
 output = Pt-shc-freqscan.dat
 
+# Test of Translation Invariant Ryoo's methods of SHC for fcc platinum
+[testpostw90_pt_shc_ryoo_transl_inv/]
+program = POSTW90_SHCFREQDAT_OK
+inputs_args = ('Pt.win', '')
+output = Pt-shc-freqscan.dat
+
 # Test of kpath with SHC as color for fcc platinum
 [testpostw90_pt_kpathbandsshc/]
 program = POSTW90_SHCKPATHBANDSDAT_OK
@@ -465,6 +517,12 @@ program = WANNIER90_DISENTANGLEMENT_SAWFS
 inputs_args = ('H3S.win', '')
 output = H3S.wout
 
+# Diamond, valence states - test of the R_mn printout
+[testw90_rmn]
+program = WANNIER90_RMN_OK
+inputs_args = ('diamond.win', '')
+output = diamond_r.dat
+
 # Test of k.p coefficients for GaAs
 [testpostw90_gaas_kdotp/]
 program = POSTW90_KDOTP_OK
@@ -477,6 +535,18 @@ program = WANNIER90_WERR_FAIL
 inputs_args = ('wannier.win', '')
 output = wannier.werr
 min_nprocs = 2
+
+# Test of DOS for Cu as proxy for checkpoint reading/writing from w90
+[checkpoint1_read/]
+program = POSTW90_DOS_OK
+inputs_args = ('copper.win', '')
+output = copper-dos.dat
+
+# Test of W90 main output; use to setup checkpoint for test above
+[checkpoint0_write/]
+program = WANNIER90_WOUT_OK
+inputs_args = ('copper.win', '')
+output = copper.wout
 
 # Test of closest Wannier functions for silicon
 [testw90_cwf_si]
@@ -493,8 +563,9 @@ output = Te.wout
 [categories]
 wannier_only = testw90_*
 postw90_only = testpostw90_*
-all = wannier_only postw90_only
+checkpoint = checkpoint0_write checkpoint1_read
+all = wannier_only postw90_only checkpoint
 # specifying min_procs does not remove par only test from the serial job
 # workaround by specifying different test sets
-par = wannier_only postw90_only partest*
+par = wannier_only postw90_only partest* checkpoint
 default =  all

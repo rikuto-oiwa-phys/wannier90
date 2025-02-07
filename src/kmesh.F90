@@ -98,27 +98,22 @@ contains
     real(kind=dp) :: dnn(max(kmesh_input%search_shells, 6*kmesh_input%higher_order_n))
     real(kind=dp) :: recip_lattice(3, 3), volume
     real(kind=dp) :: vkpp(3), vkpp2(3)
-    !real(kind=dp) :: wb_local(num_nnmax)
 
     ! higher-order finite-difference
-    real(kind=dp) :: bweight(kmesh_input%max_shells_h)
-    real(kind=dp) :: wb_local(kmesh_input%num_nnmax_h)
-    real(kind=dp) :: bk_latt(3)
-    real(kind=dp) :: bkl_norm, bka_norm, bkl_normalized(3), bka_normalized(3), inv_lattice(3, 3)
-    real(kind=dp), allocatable :: bk_first(:, :, :)
+    integer, allocatable :: lmn(:, :) ! Order in which to search the cells (ordered in dist from origin)
+    integer, allocatable :: nnlist_tmp(:, :), nncell_tmp(:, :, :) ![ysl]
+    integer, allocatable :: nnshell(:, :)
+    integer :: ifound, counter, na, nap, loop_s, loop_b, shell !, nbvec, bnum
+    integer :: ifpos, ifneg, ierr, multi(max(kmesh_input%search_shells, 6*kmesh_input%higher_order_n))
+    integer :: nlist, nkp, nkp2, l, m, n, ndnn, ndnnx, ndnntot
+    integer :: nnsh, nn, nnx, loop, i, j
+    integer :: num_first_shells, ndnn2, nnx2, multi_cumulative, lmn_temp(3)
     integer :: num_x((1 + kmesh_input%higher_order_n)*(1 + 2*kmesh_input%higher_order_n))
     integer :: num_y((1 + kmesh_input%higher_order_n)*(1 + 2*kmesh_input%higher_order_n))
     integer :: num_z((1 + kmesh_input%higher_order_n)*(1 + 2*kmesh_input%higher_order_n))
-    integer :: num_first_shells, ndnn2, nnx2, multi_cumulative, lmn_temp(3)
-    logical :: lpar
-
-    integer, allocatable :: nnlist_tmp(:, :), nncell_tmp(:, :, :) ![ysl]
-    integer :: ifound, counter, na, nap, loop_s, loop_b, shell !, nbvec, bnum
-    integer :: ifpos, ifneg, ierr, multi(max(kmesh_input%search_shells, 6*kmesh_input%higher_order_n))
-    integer, allocatable :: lmn(:, :) ! Order in which to search the cells (ordered in dist from origin)
-    integer :: nlist, nkp, nkp2, l, m, n, ndnn, ndnnx, ndnntot
-    integer, allocatable :: nnshell(:, :)
-    integer :: nnsh, nn, nnx, loop, i, j
+    real(kind=dp) :: bk_latt(3), inv_lattice(3, 3)
+    real(kind=dp) :: bweight(kmesh_input%max_shells_h)
+    real(kind=dp) :: wb_local(kmesh_input%num_nnmax_h)
 
     if (print_output%timing_level > 0) call io_stopwatch_start('kmesh: get', timer)
 
@@ -262,16 +257,17 @@ contains
       if (allocated(error)) return
     end if
 
+    num_first_shells = kmesh_input%num_shells ! for convenience in printout error
+
     if (print_output%iprint > 0) then
       if (kmesh_input%higher_order_nearest_shells) then
-        write (stdout, '(1x,a)', advance='no') '| The following shells are used: '
-      else
         write (stdout, '(1x,a)', advance='no') '| The following shells and their multiples are used: '
+      else
+        write (stdout, '(1x,a)', advance='no') '| The following shells are used: '
       endif
       do ndnn = 1, kmesh_input%num_shells
         if (ndnn .eq. kmesh_input%num_shells) then
           write (stdout, '(i3,1x)', advance='no') kmesh_input%shell_list(ndnn)
-          num_first_shells = kmesh_input%num_shells
         else
           write (stdout, '(i3,",")', advance='no') kmesh_input%shell_list(ndnn)
         endif
@@ -1426,24 +1422,19 @@ contains
     real(kind=dp), intent(out) :: bweight(kmesh_input%max_shells_h)
 
     ! local variables
-    real(kind=dp), allocatable     :: bvector(:, :, :) ! the bvectors
-
-    real(kind=dp), dimension(:), allocatable :: singv, tmp1, tmp2, tmp3
-    real(kind=dp), dimension(:, :), allocatable :: amat, umat, vmat, smat, tmp0
+    integer :: loop_bn, loop_b, loop_s, info, cur_shell, ierr, loop, shell
+    logical :: lpar
+    real(kind=dp), allocatable :: amat(:, :), umat(:, :), vmat(:, :), smat(:, :), tmp0(:, :)
+    real(kind=dp), allocatable :: bvector(:, :, :) ! the bvectors
+    real(kind=dp), allocatable :: singv(:), tmp1(:), tmp2(:), tmp3(:)
+    real(kind=dp) :: delta
     real(kind=dp) :: target(kmesh_input%max_shells_aux)
     real(kind=dp) :: work((kmesh_input%max_shells_aux)*10)
-    !real(kind=dp), parameter :: target(6) = (/1.0_dp, 1.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/)
-    logical :: lpar
-    integer :: loop_i, loop_j, loop_bn, loop_b, loop_s, info, cur_shell, ierr
-    real(kind=dp) :: delta
-
-    integer :: loop, shell
 
     ! variables for higher-order finite-difference
     integer, dimension(:, :), allocatable :: num_x, num_y, num_z
     logical :: bsat
-    real(kind=dp) :: bweight_temp, fact
-    integer :: loop_order, num_of_eqs, num_of_eqs_prev, higher_order_n_local, shell_higher
+    integer :: loop_order, num_of_eqs, higher_order_n_local
 
     if (kmesh_input%higher_order_nearest_shells) then
       higher_order_n_local = kmesh_input%higher_order_n

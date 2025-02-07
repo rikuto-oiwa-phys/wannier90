@@ -258,6 +258,8 @@ module w90_types
     integer :: num_points_first_segment = 100
     character(len=20), allocatable :: labels(:)
     real(kind=dp), allocatable :: points(:, :)
+    logical :: bands_kpt_explicit ! use user provided list of kpoints for bands kpath
+    real(kind=dp), allocatable ::bands_kpt_frac(:, :) ! explicit bands kpoints in fractional coordinate
   end type kpoint_path_type
 
   type settings_data
@@ -268,6 +270,7 @@ module w90_types
     ! as different types; otherwise reshape, etc.
     character(len=:), allocatable :: keyword ! token
     character(len=:), allocatable :: txtdata ! text data item
+    character(len=:), allocatable :: c2d(:)
     ! integer data
     integer, allocatable :: i1d(:)
     integer, allocatable :: i2d(:, :)

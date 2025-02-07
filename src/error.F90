@@ -41,7 +41,7 @@ contains
     character(len=*), intent(in) :: mesg
     type(w90_comm_type), intent(in) :: comm
     call set_base_error(err, mesg, code_fatal)
-    call comms_sync_err(comm, err, code_fatal)
+    call comms_sync_error(comm, err, code_fatal)
   end subroutine set_error_fatal
 
   subroutine set_error_alloc(err, mesg, comm)
@@ -49,7 +49,7 @@ contains
     character(len=*), intent(in) :: mesg
     type(w90_comm_type), intent(in) :: comm
     call set_base_error(err, mesg, code_alloc)
-    call comms_sync_err(comm, err, code_alloc)
+    call comms_sync_error(comm, err, code_alloc)
   end subroutine set_error_alloc
 
   subroutine set_error_dealloc(err, mesg, comm)
@@ -57,7 +57,7 @@ contains
     character(len=*), intent(in) :: mesg
     type(w90_comm_type), intent(in) :: comm
     call set_base_error(err, mesg, code_dealloc)
-    call comms_sync_err(comm, err, code_dealloc)
+    call comms_sync_error(comm, err, code_dealloc)
   end subroutine set_error_dealloc
 
   ! note, this is not used in comms routines
@@ -67,7 +67,7 @@ contains
     character(len=*), intent(in) :: mesg
     type(w90_comm_type), intent(in) :: comm
     call set_base_error(err, mesg, code_mpi)
-    call comms_sync_err(comm, err, code_mpi)
+    call comms_sync_error(comm, err, code_mpi)
   end subroutine set_error_mpi
 
   subroutine set_error_input(err, mesg, comm)
@@ -75,7 +75,7 @@ contains
     character(len=*), intent(in) :: mesg
     type(w90_comm_type), intent(in) :: comm
     call set_base_error(err, mesg, code_input)
-    call comms_sync_err(comm, err, code_input)
+    call comms_sync_error(comm, err, code_input)
   end subroutine set_error_input
 
   subroutine set_error_file(err, mesg, comm)
@@ -83,7 +83,7 @@ contains
     character(len=*), intent(in) :: mesg
     type(w90_comm_type), intent(in) :: comm
     call set_base_error(err, mesg, code_file)
-    call comms_sync_err(comm, err, code_file)
+    call comms_sync_error(comm, err, code_file)
   end subroutine set_error_file
 
   subroutine set_error_unconv(err, mesg, comm)
@@ -91,7 +91,7 @@ contains
     character(len=*), intent(in) :: mesg
     type(w90_comm_type), intent(in) :: comm
     call set_base_error(err, mesg, code_unconv)
-    call comms_sync_err(comm, err, code_unconv)
+    call comms_sync_error(comm, err, code_unconv)
   end subroutine set_error_unconv
 
   subroutine set_error_warn(err, mesg, comm)
@@ -99,7 +99,7 @@ contains
     character(len=*), intent(in) :: mesg
     type(w90_comm_type), intent(in) :: comm
     call set_base_error(err, mesg, code_warning)
-    call comms_sync_err(comm, err, code_warning)
+    call comms_sync_error(comm, err, code_warning)
   end subroutine set_error_warn
 
 end module w90_error

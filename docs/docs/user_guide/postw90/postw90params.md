@@ -421,6 +421,72 @@ correction, the convention of the Bloch sum (determined by
 
 The default value is `true`.
 
+### `logical :: transl_inv`
+
+If `transl_inv=true`, the Marzari-Vanderbilt formula is used
+for diagonal part of position matrix elements, or equivalently,
+for the wannier centres
+
+$$
+\mathbf{r}_i = - \frac{1}{N_{\mathbf{k}}}
+\sum_{\mathbf{k},\mathbf{b}} c_{\mathbf{b}}
+\mathbf{b} \, \text{Im} \ln M_{ii}^{(\mathbf{k,b})}
+$$
+
+instead of the naive finite difference formula.
+
+$$
+\mathbf{r}_i = \frac{i}{N_{\mathbf{k}}}
+\sum_{\mathbf{k},\mathbf{b}} c_{\mathbf{b}} \mathbf{b}
+\, M_{ii}^{(\mathbf{k,b})}
+$$
+
+where $M_{ij}^{(\mathbf{k,b})}$ is the overlap matrix in the Wannier gauge.
+
+$$
+M_{ij}^{(\mathbf{k,b})} = \sum_{m,n}
+U_{im}^{\dagger (\mathbf{k})} \langle u_{m\mathbf{k}}^{(\text{H})}
+| u_{n\mathbf{k+b}}^{(\text{H})} \rangle U_{nj}^{(\mathbf{k+b})}
+$$
+
+The default value is `false`.
+
+### `logical :: transl_inv_full`
+
+If `transl_inv_full=true`, the translationally-invariant finite difference
+formula is used for the computation of position and related matrix elements.
+For example, the naive finite difference formula used in the computation of
+off-diagonal position matrix elements is
+
+$$
+\mathbf{A}_{ij;\mathbf{R}} = \langle w_{i\mathbf{0}} | \hat{\mathbf{r}}
+| w_{j\mathbf{R}} \rangle = \frac{i}{N_{\mathbf{k}}} \sum_{\mathbf{k},
+\mathbf{b}} c_{\mathbf{b}} \mathbf{b} \, e^{-i\mathbf{k} \cdot \mathbf{R}}
+M_{ij}^{(\mathbf{k,b})} \, .
+$$
+
+For the `transl_inv_full=true`, the following formula is used
+
+$$
+\mathbf{A}_{ij;\mathbf{R}} = \langle w_{i\mathbf{0}} | \hat{\mathbf{r}}
+| w_{j\mathbf{R}} \rangle = \frac{i}{N_{\mathbf{k}}} \sum_{\mathbf{b}}
+c_{\mathbf{b}} \mathbf{b} \, e^{i\mathbf{b} \cdot
+\bar{\mathbf{r}}_{ij;\mathbf{R}}} \sum_\mathbf{k} e^{-i\mathbf{k}
+\cdot \mathbf{R}} M_{ij}^{(\mathbf{k,b})} +
+\bar{\mathbf{r}}_{ij;\mathbf{R}} \delta_{ij} \delta_\mathbf{0R}
+$$
+
+where $\bar{\mathbf{r}}_{ij;\mathbf{R}} =
+(\mathbf{r}_i + \mathbf{r}_j + \mathbf{R}) / 2$.
+The needed wannier centres are computed using
+the Marzari-Vanderbilt formula.
+
+This formalism is more accurate than the naive finite difference formula
+and converges faster. The formula is also manifestly translationally-invariant,
+that is, the results are the same if the system is translated by a whole.
+
+The default value is `false`.
+
 ## DOS
 
 Note that the behavior of the `dos` module is also influenced by the

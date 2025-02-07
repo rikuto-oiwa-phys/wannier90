@@ -204,7 +204,8 @@ contains
         if (allocated(error)) return
 
         if (output_file%write_hr) then
-          call hamiltonian_write_hr(ham_logical, ham_r, irvec, ndegen, nrpts, num_wann, &
+          ! is this redundant after the plot call?
+          call hamiltonian_write_hr(ham_r, irvec, ndegen, nrpts, num_wann, &
                                     print_output%timing_level, seedname, timer, error, comm)
         endif
 
@@ -250,7 +251,7 @@ contains
         if (allocated(error)) return
 
         if (output_file%write_hr) then
-          call hamiltonian_write_hr(ham_logical, ham_r, irvec, ndegen, nrpts, num_wann, &
+          call hamiltonian_write_hr(ham_r, irvec, ndegen, nrpts, num_wann, &
                                     print_output%timing_level, seedname, timer, error, comm)
           if (allocated(error)) return
         endif

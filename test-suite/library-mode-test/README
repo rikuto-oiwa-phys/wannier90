@@ -1,0 +1,5 @@
+Example gaas.win with the amn, mmn, eig files, converted into a library call (with hard coded lattice and other key parameters).
+
+Output is deliberately suppressed and only the resulting centres and spreads are printed to standard out.
+
+To run the test, compile the wannier library (make lib or make dynlib in top level directory) and type "make".

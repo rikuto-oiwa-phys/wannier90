@@ -843,6 +843,19 @@ not possible if an explicit projection block is not defined).
 
 The default value is `false`.
 
+### `logical :: use_ss_functional`
+
+If `true`, use Stengel-Spaldin spread functional and if `false`,
+use Marzari-Vanderbilt spread functional.
+
+Both functionals converge to the same behavior if infinitely fine grid is used.
+Both of them are translationally invariant,
+but only Stengel-Spaldin functional is size consistent.
+
+For more information, refer to Phys. Rev. B 73, 075121.
+
+The default value is `false`.
+
 ### `integer :: num_guide_cycles`
 
 If `guiding_centres` is set to `true`, then the guiding centres are used
@@ -1252,6 +1265,33 @@ first section of the bandstructure plot given by `kpoint_path`. Other
 sections will have the same density of k-points.
 
 The default value for `bands_num_points` is 100.
+
+### explicit_kpath and explicit_kpath_labels
+
+If `explicit_kpath_labels` and `explicit_kpath` are present in the input,
+the band interpolation code will use an explicitly provided list of k-points
+specified by `explicit_kpath`, instead of using `bands_num_points` to automatically
+generate a list of k-points:
+
+```vi title="Input file"
+begin explicit_kpath
+  0.500000 0.500000 0.500000
+  0.450000 0.450000 0.450000
+  0.400000 0.400000 0.400000
+...
+end explicit_kpath
+```
+
+and
+
+```vi title="Input file"
+begin explicit_kpath_labels
+  L 0.50000 0.50000 0.5000
+  G 0.00000 0.00000 0.0000
+  X 0.50000 0.00000 0.5000
+...
+end explicit_kpath_labels
+```
 
 ### `character(len=20) :: bands_plot_format`
 

@@ -149,10 +149,9 @@ contains
   end subroutine overlap_allocate
 
   !================================================!
-  subroutine overlap_read(kmesh_info, select_projection, sitesym, au_matrix, &
-                          m_matrix_local, num_bands, num_kpts, num_proj, num_wann, &
-                          cwf_parameters, eigval, &
-                          print_output, timing_level, cp_pp, gamma_only, lsitesymmetry, &
+  subroutine overlap_read(kmesh_info, select_projection, au_matrix, m_matrix_local, num_bands, &
+                          num_kpts, num_proj, num_wann, cwf_parameters, eigval, &
+                          print_output, timing_level, cp_pp, &
                           use_bloch_phases, seedname, stdout, timer, dist_k, error, comm)
     !================================================!
     !! Read the Mmn and Amn from files
@@ -162,16 +161,15 @@ contains
 
     use w90_io, only: io_stopwatch_start, io_stopwatch_stop
     use w90_types, only: kmesh_info_type, print_output_type, timer_list_type, cwf_parameters_type
-    use w90_wannier90_types, only: select_projection_type, sitesym_type
+    use w90_wannier90_types, only: select_projection_type
     use w90_error
 
     implicit none
 
     ! arguments
     type(kmesh_info_type), intent(in) :: kmesh_info
-    type(print_output_type), intent(in)      :: print_output
+    type(print_output_type), intent(in) :: print_output
     type(select_projection_type), intent(in) :: select_projection
-    type(sitesym_type), intent(in) :: sitesym
     type(timer_list_type), intent(inout) :: timer
     type(w90_comm_type), intent(in) :: comm
     type(w90_error_type), allocatable, intent(out) :: error
@@ -190,32 +188,28 @@ contains
     integer, intent(in) :: timing_level
 
     complex(kind=dp), intent(inout) :: au_matrix(:, :, :)
-    !complex(kind=dp), intent(inout) :: m_matrix(:, :, :, :)
     complex(kind=dp), intent(inout) :: m_matrix_local(:, :, :, :)
-    !complex(kind=dp), intent(inout) :: m_matrix_orig_local(:, :, :, :)
-    !complex(kind=dp), intent(inout) :: u_matrix(:, :, :)
-    !complex(kind=dp), intent(inout) :: u_matrix_opt(:, :, :)
 
-    logical, intent(in) :: gamma_only ! used in some now commented code below
-    logical, intent(in) :: lsitesymmetry
     logical, intent(in) :: cp_pp, use_bloch_phases
 
-    character(len=50), intent(in)  :: seedname
+    character(len=50), intent(in) :: seedname
 
     ! local variables
+    complex(kind=dp), allocatable :: mmn_tmp(:, :)
+    real(kind=dp) :: m_real, m_imag, a_real, a_imag
+
     integer, allocatable :: map_kpts(:)
     integer :: mmn_in, amn_in, num_mmn, num_amn
+    integer :: my_node_id
     integer :: nb_tmp, nkp_tmp, nntot_tmp, np_tmp, ierr
     integer :: nkp, nkp2, nkp_loc, inn, nn, n, m
     integer :: nnl, nnm, nnn, ncount
-    logical :: nn_found
-    real(kind=dp) :: m_real, m_imag, a_real, a_imag
-    complex(kind=dp), allocatable :: mmn_tmp(:, :)
-    character(len=50) :: dummy
 
     logical :: disentanglement
-    integer :: my_node_id
+    logical :: nn_found
     logical :: on_root = .false.
+
+    character(len=50) :: dummy
 
     disentanglement = (num_bands > num_wann)
 
@@ -409,33 +403,6 @@ contains
     if (cp_pp) call overlap_rotate(au_matrix, m_matrix_local, kmesh_info%nntot, num_bands, &
                                    timing_level, timer, error, comm)
     if (allocated(error)) return
-
-    ! Check Mmn(k,b) is symmetric in m and n for gamma_only case
-    ! if (gamma_only) call overlap_check_m_symmetry()
-    !
-    ! If we don't need to disentangle we can now convert from A to U
-    ! And rotate M accordingly
-    ! Jan 2023, Jerome Jackson, moved overlap_project outside of overlap_read
-    !    if ((.not. disentanglement) .and. (.not. cp_pp) .and. (.not. use_bloch_phases)) then
-    !      if (.not. gamma_only) then
-    !        call overlap_project(sitesym, m_matrix_local, au_matrix, kmesh_info%nnlist, &
-    !                             kmesh_info%nntot, num_bands, num_kpts, num_wann, timing_level, &
-    !                             lsitesymmetry, stdout, timer, dist_k, error, comm)
-    !      else
-    !        call overlap_project_gamma(m_matrix_local, au_matrix, kmesh_info%nntot, num_wann, &
-    !                                   timing_level, stdout, timer, error, comm)
-    !      endif
-    !      if (allocated(error)) return
-    !    endif
-    !
-    !~[aam]
-    !~      if( gamma_only .and. use_bloch_phases ) then
-    !~        write(stdout,'(1x,"+",76("-"),"+")')
-    !~        write(stdout,'(3x,a)') 'WARNING: gamma_only and use_bloch_phases                 '
-    !~        write(stdout,'(3x,a)') '         M must be calculated from *real* Bloch functions'
-    !~        write(stdout,'(1x,"+",76("-"),"+")')
-    !~      end if
-    ![ysl-e]
 
     deallocate (map_kpts)
     if (timing_level > 0) call io_stopwatch_stop('overlap: read', timer)

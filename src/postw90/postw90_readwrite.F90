@@ -131,7 +131,7 @@ contains
     real(kind=dp), allocatable, intent(inout) :: fermi_energy_list(:)
     real(kind=dp), allocatable, intent(inout) :: kpt_latt(:, :)
 
-    character(len=50), intent(in)  :: seedname
+    character(len=*), intent(in)  :: seedname
 
     logical, intent(inout) :: eig_found
     logical, intent(inout) :: gamma_only
@@ -168,8 +168,7 @@ contains
     if (allocated(error)) return
     call w90_readwrite_read_exclude_bands(settings, exclude_bands, num_exclude_bands, error, comm)
     if (allocated(error)) return
-    call w90_readwrite_read_num_bands(settings, effective_model, num_bands, num_wann, stdout, &
-                                      error, comm)
+    call w90_readwrite_read_num_bands(settings, effective_model, num_bands, num_wann, error, comm)
     if (allocated(error)) return
     disentanglement = (num_bands > num_wann)
     call w90_readwrite_read_mp_grid(settings, effective_model, mp_grid, num_kpts, error, comm)
@@ -224,7 +223,8 @@ contains
     dis_manifold%win_max = 0.0_dp
     if (eig_found) dis_manifold%win_min = minval(eigval)
     if (eig_found) dis_manifold%win_max = maxval(eigval)
-    call w90_readwrite_read_dis_manifold(settings, eig_found, dis_manifold, error, comm)
+    call w90_readwrite_read_dis_manifold(settings, dis_manifold, error, comm)
+
     if (allocated(error)) return
     call w90_wannier90_readwrite_read_geninterp(settings, pw90_geninterp, error, comm)
     if (allocated(error)) return
@@ -838,6 +838,16 @@ contains
     call w90_readwrite_get_keyword(settings, 'transl_inv', found, error, comm, &
                                    l_value=pw90_berry%transl_inv)
     if (allocated(error)) return
+    call w90_readwrite_get_keyword(settings, 'transl_inv_full', found, error, comm, &
+                                   l_value=pw90_berry%transl_inv_full)
+    if (allocated(error)) return
+    if (pw90_berry%transl_inv .and. pw90_berry%transl_inv_full) then
+      call set_error_input(error, 'Error: If transl_inv_full=T, transl_inv=T is not recommended', comm)
+      return
+    endif
+
+    call w90_readwrite_get_keyword(settings, 'guiding_centres', found, error, comm, &
+                                   l_value=pw90_berry%guiding_centres)
 
     call w90_readwrite_get_keyword(settings, 'berry_task', found, error, comm, &
                                    c_value=pw90_berry%task)
@@ -993,7 +1003,9 @@ contains
 
     character(len=*), intent(in) :: berry_task
 
-    logical :: found
+    logical :: found, transl_inv_full
+
+    transl_inv_full = .false.
 
     call w90_readwrite_get_keyword(settings, 'shc_freq_scan', found, error, comm, &
                                    l_value=pw90_spin_hall%freq_scan)
@@ -1064,6 +1076,14 @@ contains
         .and. index(pw90_spin_hall%method, 'ryoo') == 0) then
       call set_error_input(error, 'Error: value of shc_method not recognised in w90_wannier90_readwrite_read', comm)
       return
+    endif
+    if (index(pw90_spin_hall%method, 'qiao') > 0) then
+      call w90_readwrite_get_keyword(settings, 'transl_inv_full', found, error, comm, &
+                                     l_value=transl_inv_full)
+      if (transl_inv_full) then
+        call set_error_input(error, 'Error: transl_inv_full=T not implemented for shc_method=qiao', comm)
+        return
+      endif
     endif
 
   end subroutine w90_wannier90_readwrite_read_spin_hall

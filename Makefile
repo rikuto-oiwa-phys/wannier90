@@ -2,10 +2,14 @@ ifndef ROOTDIR
 ROOTDIR=.
 endif
 
+# include make.inc to determine if (last) build was serial or parallel via def/undef COMMS
+include make.inc
+
 REALMAKEFILE=../Makefile.2
 
 TAR := $(shell if which gnutar 1>/dev/null 2> /dev/null; then echo gnutar; else echo tar; fi )
 
+.NOTPARALLEL:
 default: wannier post
 
 PREFIX ?= /usr
@@ -25,8 +29,8 @@ install: default
 	if [ -f "utility/w90pov/w90pov" ]; then install -m755 "utility/w90pov/w90pov" "$(DESTDIR)$(PREFIX)/bin/w90pov"; fi;
 	if [ -f "utility/w90vdw/w90vdw.x" ]; then install -m755 "utility/w90vdw/w90vdw.x" "$(DESTDIR)$(PREFIX)/bin/w90vdw.x"; fi;
 	install -d $(DESTDIR)$(PREFIX)/lib/
-	if [ -f "libwannier.a" ]; then install -m644 "libwannier.a" "$(DESTDIR)$(PREFIX)/lib/libwannier.a"; fi;
-	if [ -f "libwannier.a" ]; then $(MAKE) pkgconfig; fi;
+	if [ -f "$(LIBRARYV2)" ]; then install -m644 "$(LIBRARYV2)" "$(DESTDIR)$(PREFIX)/lib/$(LIBRARYV2)"; fi;
+	if [ -f "$(LIBRARYV2)" ]; then $(MAKE) pkgconfig; fi;
 
 all: wannier lib post w90chk2chk w90pov w90vdw w90spn2spn
 
@@ -52,6 +56,9 @@ w90pov:
 
 w90vdw:
 	(cd $(ROOTDIR)/utility/w90vdw && $(MAKE) )
+
+w90py: dynlib
+	(cd $(ROOTDIR)/wrap && $(MAKE) )
 
 libs: lib
 
@@ -83,14 +90,12 @@ clean:
 		$(MAKE) -f $(REALMAKEFILE) clean && \
 		cd ../ && rm -rf obj ; \
 	fi )
-	cd $(ROOTDIR)/docs && rm -r site
 	$(MAKE) -C $(ROOTDIR)/utility/w90pov clean
 	$(MAKE) -C $(ROOTDIR)/utility/w90vdw clean
 	cd $(ROOTDIR)/test-suite && ./clean_tests
 
 veryclean: clean
-	cd $(ROOTDIR) && rm -f wannier90.x postw90.x libwannier.a libwan2.a w90chk2chk.x w90spn2spn.x
-	cd $(ROOTDIR)/docs && rm -r site
+	cd $(ROOTDIR) && rm -f wannier90.x postw90.x w90chk2chk.x w90spn2spn.x libwannier90.{a,so.4} libwannier90_mpi.{a,so.4} *.{gcda,gcno}
 	cd $(ROOTDIR)/test-suite && ./clean_tests -i
 
 thedoc:
@@ -203,7 +208,11 @@ test-parallel: w90chk2chk wannier post
 	(cd $(ROOTDIR)/test-suite && ./run_tests --category=par --numprocs=4 )
 
 # Alias
+ifdef COMMS
 tests: test-serial test-parallel
+else
+tests: test-serial
+endif
 
 dist-lite:
 	@(cd $(ROOTDIR) && $(TAR) -cz --transform='s,^\./,wannier90/,' -f wannier90.tar.gz \

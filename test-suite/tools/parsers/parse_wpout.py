@@ -13,7 +13,7 @@ from . import show_output
 # 0: Shell Index
 # 1: distance (ang^-1)
 # 2: multiplicity
-near_neigh_re = re.compile("^\s*\|\s+(\d+)\s+([\d\.]+)\s*(\d+)\s*")
+near_neigh_re = re.compile(r"^\s*\|\s+(\d+)\s+([\d\.]+)\s*(\d+)\s*")
 
 # Match the 'WF centre and spread' line. 
 # Groups:
@@ -22,14 +22,14 @@ near_neigh_re = re.compile("^\s*\|\s+(\d+)\s+([\d\.]+)\s*(\d+)\s*")
 # 2: centre_y
 # 3: centre_z
 # 4: spread
-spread_re = re.compile("^\s*WF centre and spread\s+(\d+)\s+\(\s*([0-9\.-]+)\s*,\s*([0-9\.-]+)\s*,\s*([0-9\.-]+)\s*\)\s*([0-9\.-]+)\s*$")
+spread_re = re.compile(r"^\s*WF centre and spread\s+(\d+)\s+\(\s*([0-9\.-]+)\s*,\s*([0-9\.-]+)\s*,\s*([0-9\.-]+)\s*\)\s*([0-9\.-]+)\s*$")
 
 # Match the AHC
 # Groups:
 # 0: ahc_x
 # 1: ahc_y
 # 2: ahc_z
-ahc_re = re.compile("^\s*==========\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0-9]+)\s*")
+ahc_re = re.compile(r"^\s*==========\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0-9]+)\s*")
 
 
 # Match the orbital magnetisation
@@ -37,23 +37,23 @@ ahc_re = re.compile("^\s*==========\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0
 # 0: morb_x
 # 1: morb_y
 # 2: morb_z
-morb_re = re.compile("^\s*======================\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0-9]+)\s*")
+morb_re = re.compile(r"^\s*======================\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0-9]+)\s+([-+]?[0-9]*\.?[0-9]+)\s*")
 
 # Match the spin
 
-spinx_re = re.compile("x\ component:\s*([0-9\.-]+)\s*$")
-spiny_re = re.compile("y\ component:\s*([0-9\.-]+)\s*$")
-spinz_re = re.compile("z\ component:\s*([0-9\.-]+)\s*$")
-spinp_re = re.compile("Polar\ theta\ \(deg\):\s*([0-9\.-]+)\s*$")
-spina_re = re.compile("Azim.\ phi\ \(deg\):\s*([0-9\.-]+)\s*$")
+spinx_re = re.compile(r"x\ component:\s*([0-9\.-]+)\s*$")
+spiny_re = re.compile(r"y\ component:\s*([0-9\.-]+)\s*$")
+spinz_re = re.compile(r"z\ component:\s*([0-9\.-]+)\s*$")
+spinp_re = re.compile(r"Polar\ theta\ \(deg\):\s*([0-9\.-]+)\s*$")
+spina_re = re.compile(r"Azim.\ phi\ \(deg\):\s*([0-9\.-]+)\s*$")
 
 # Match the lines with the Omegas
 # Groups:
 # 0: Omega_*
-omegaI_re = re.compile("Omega\ I\s+=\s*([0-9\.-]+)\s*$")
-omegaD_re = re.compile("Omega\ D\s+=\s*([0-9\.-]+)\s*$")
-omegaOD_re = re.compile("Omega\ OD\s+=\s*([0-9\.-]+)\s*$")
-omegaTotal_re = re.compile("Omega\ Total\s+=\s*([0-9\.-]+)\s*$")
+omegaI_re = re.compile(r"Omega\ I\s+=\s*([0-9\.-]+)\s*$")
+omegaD_re = re.compile(r"Omega\ D\s+=\s*([0-9\.-]+)\s*$")
+omegaOD_re = re.compile(r"Omega\ OD\s+=\s*([0-9\.-]+)\s*$")
+omegaTotal_re = re.compile(r"Omega\ Total\s+=\s*([0-9\.-]+)\s*$")
 
 ## A comment on regexps: re.match only checks the beginning of the line, while
 ## re.search anywhere in the string (like perl)

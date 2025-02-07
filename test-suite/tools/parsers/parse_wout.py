@@ -14,7 +14,7 @@ from . import show_output
 # 0: Shell Index
 # 1: distance (ang^-1)
 # 2: multiplicity
-near_neigh_re = re.compile("^\s*\|\s+(\d+)\s+([\d\.]+)\s*(\d+)\s*")
+near_neigh_re = re.compile(r"^\s*\|\s+(\d+)\s+([\d\.]+)\s*(\d+)\s*")
 
 # Match the 'WF centre and spread' line. 
 # Groups:
@@ -23,19 +23,19 @@ near_neigh_re = re.compile("^\s*\|\s+(\d+)\s+([\d\.]+)\s*(\d+)\s*")
 # 2: centre_y
 # 3: centre_z
 # 4: spread
-spread_re = re.compile("^\s*WF centre and spread\s+(\d+)\s+\(\s*([0-9\.-]+)\s*,\s*([0-9\.-]+)\s*,\s*([0-9\.-]+)\s*\)\s*([0-9\.-]+)\s*$")
+spread_re = re.compile(r"^\s*WF centre and spread\s+(\d+)\s+\(\s*([0-9\.-]+)\s*,\s*([0-9\.-]+)\s*,\s*([0-9\.-]+)\s*\)\s*([0-9\.-]+)\s*$")
 
 # Match the lines with the Omegas
 # Groups:
 # 0: Omega_*
-omegaI_re = re.compile("Omega\ I\s+=\s*([0-9\.-]+)\s*$")
-omegaD_re = re.compile("Omega\ D\s+=\s*([0-9\.-]+)\s*$")
-omegaOD_re = re.compile("Omega\ OD\s+=\s*([0-9\.-]+)\s*$")
-omegaTotal_re = re.compile("Omega\ Total\s+=\s*([0-9\.-]+)\s*$")
-omegaIOD_C_re = re.compile("Omega\ IOD_C\s+=\s*([0-9\.-]+)\s*$")
-omegaRest_re = re.compile("Omega\ Rest\s+=\s*([0-9\.-]+)\s*$")
-penaltyfunc_re = re.compile("Penalty\ func\s+=\s*([0-9\.-]+)\s*$")
-omegaTotal_C_re = re.compile("Omega\ Total_C\s+=\s*([0-9\.-]+)\s*$")
+omegaI_re = re.compile(r"Omega\ I\s+=\s*([0-9\.-]+)\s*$")
+omegaD_re = re.compile(r"Omega\ D\s+=\s*([0-9\.-]+)\s*$")
+omegaOD_re = re.compile(r"Omega\ OD\s+=\s*([0-9\.-]+)\s*$")
+omegaTotal_re = re.compile(r"Omega\ Total\s+=\s*([0-9\.-]+)\s*$")
+omegaIOD_C_re = re.compile(r"Omega\ IOD_C\s+=\s*([0-9\.-]+)\s*$")
+omegaRest_re = re.compile(r"Omega\ Rest\s+=\s*([0-9\.-]+)\s*$")
+penaltyfunc_re = re.compile(r"Penalty\ func\s+=\s*([0-9\.-]+)\s*$")
+omegaTotal_C_re = re.compile(r"Omega\ Total_C\s+=\s*([0-9\.-]+)\s*$")
 
 ## A comment on regexps: re.match only checks the beginning of the line, while
 ## re.search anywhere in the string (like perl)

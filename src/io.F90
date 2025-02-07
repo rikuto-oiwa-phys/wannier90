@@ -37,6 +37,7 @@ module w90_io
   public :: io_time
   public :: io_wallclocktime
   public :: prterr
+  public :: print_error_halt
 
 contains
 
@@ -394,13 +395,13 @@ contains
 
   subroutine prterr(error, ie, istdout, istderr, comm)
     use w90_comms, only: comms_no_sync_send, comms_no_sync_recv, w90_comm_type, mpirank, mpisize
-    use w90_error_base, only: code_remote, w90_error_type
+    use w90_error_base, only: code_deactivated, code_remote, w90_error_type
 
     ! arguments
     integer, intent(inout) :: ie ! global error value to be returned
     integer, intent(in) :: istderr, istdout
     type(w90_comm_type), intent(in) :: comm
-    type(w90_error_type), allocatable, intent(in) :: error
+    type(w90_error_type), allocatable, intent(inout) :: error
 
     ! local variables
     type(w90_error_type), allocatable :: le ! unchecked error state for calls made in this routine
@@ -413,7 +414,7 @@ contains
     mesg = 'not set'
 
     if (mpirank(comm) == 0) then
-      ! fixme, report all failing ranks instead of lowest failing rank (current stand)
+      ! currently this printout will list only the lowest failing rank, not all failing ranks
       do j = mpisize(comm) - 1, 1, -1
         call comms_no_sync_recv(je, 1, j, le, comm)
 
@@ -437,7 +438,7 @@ contains
       write (istderr, *) 'Exiting.......'
       write (istderr, '(1x,a)') trim(mesg)
       write (istderr, '(1x,a,i0,a)') '(rank: ', failrank, ')'
-      write (istderr, '(1x,a)') ' error encountered; check .wout log'
+      !write (istderr, '(1x,a)') 'error encountered; check .wout log'
 
     else ! non 0 ranks
       je = error%code
@@ -447,6 +448,23 @@ contains
         call comms_no_sync_send(mesg, 128, 0, le, comm)
       endif
     endif
+    flush(istdout)
+    flush(istderr)
+
+    error%code = code_deactivated
+    deallocate (error) ! else allocated error trips uncaught error mechanism (ifdef W90DEV, see io.F90)
   end subroutine prterr
 
+  subroutine print_error_halt(error, ie, istdout, istderr, comm)
+    use w90_comms, only: w90_comm_type
+    use w90_error_base, only: w90_error_type
+    ! arguments
+    integer, intent(inout) :: ie ! global error value to be returned
+    integer, intent(in) :: istderr, istdout
+    type(w90_comm_type), intent(in) :: comm
+    type(w90_error_type), allocatable, intent(inout) :: error
+
+    call prterr(error, ie, istdout, istderr, comm)
+    stop
+  end subroutine print_error_halt
 end module w90_io

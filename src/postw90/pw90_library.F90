@@ -49,12 +49,12 @@ module w90_lib_all
   end type lib_postw90_type
 
   public :: read_checkpoint, calc_dos, boltzwann, gyrotropic, berry, kpath, kslice, &
-            read_all_input_has_eigs, read_all_input_and_eigs
+            read_all_input_has_eigs, read_all_input_and_eigs, read_pw90_input
   private :: read_all_input
 
 contains
 
-  subroutine read_all_input_and_eigs(wann90, w90only, pw90, seedname, istdout, istderr, ierr)
+  subroutine read_all_input_and_eigs(wann90, pw90, seedname, istdout, istderr, ierr)
     use w90_wannier90_readwrite, only: w90_wannier90_readwrite_read, w90_extra_io_type
     use w90_error_base, only: w90_error_type
     use w90_comms, only: w90_comm_type, mpirank
@@ -64,18 +64,16 @@ contains
 
     implicit none
     type(lib_common_type), intent(inout) :: wann90
-    type(lib_wannier_type), intent(inout) :: w90only
     type(lib_postw90_type), intent(inout) :: pw90
     integer, intent(in) :: istdout, istderr
     character(len=*), intent(in) :: seedname
     integer, intent(out) :: ierr
     real(kind=dp) :: eigval(1, 1)
 
-    call read_all_input(wann90, w90only, pw90, eigval, .false., seedname, istdout, istderr, ierr)
+    call read_all_input(wann90, pw90, eigval, .false., seedname, istdout, istderr, ierr)
   end subroutine read_all_input_and_eigs
 
-  subroutine read_all_input_has_eigs(wann90, w90only, pw90, eigval, seedname, istdout, istderr, &
-                                     ierr)
+  subroutine read_all_input_has_eigs(wann90, pw90, eigval, seedname, istdout, istderr, ierr)
     use w90_wannier90_readwrite, only: w90_wannier90_readwrite_read, w90_extra_io_type
     use w90_error_base, only: w90_error_type
     use w90_comms, only: w90_comm_type, mpirank
@@ -85,18 +83,18 @@ contains
 
     implicit none
     type(lib_common_type), intent(inout) :: wann90
-    type(lib_wannier_type), intent(inout) :: w90only
     type(lib_postw90_type), intent(inout) :: pw90
     real(kind=dp), intent(inout) :: eigval(:, :)
     integer, intent(in) :: istdout, istderr
     character(len=*), intent(in) :: seedname
     integer, intent(out) :: ierr
 
-    call read_all_input(wann90, w90only, pw90, eigval, .true., seedname, istdout, istderr, ierr)
+    call read_all_input(wann90, pw90, eigval, .true., seedname, istdout, istderr, ierr)
   end subroutine read_all_input_has_eigs
 
-  subroutine read_all_input(wann90, w90only, pw90, eigval, eig_ok, seedname, istdout, istderr, ierr)
-    use w90_wannier90_readwrite, only: w90_wannier90_readwrite_read, w90_extra_io_type
+  subroutine read_all_input(wann90, pw90, eigval, eig_ok, seedname, istdout, istderr, ierr)
+    use w90_wannier90_readwrite, only: w90_wannier90_readwrite_read, w90_extra_io_type, &
+      w90_wannier90_readwrite_read_special
     use w90_error_base, only: w90_error_type
     use w90_comms, only: w90_comm_type, mpirank
     use w90_postw90_readwrite, only: w90_postw90_readwrite_readall, pw90_extra_io_type
@@ -105,7 +103,6 @@ contains
 
     implicit none
     type(lib_common_type), intent(inout) :: wann90
-    type(lib_wannier_type), intent(inout) :: w90only
     type(lib_postw90_type), intent(inout) :: pw90
     real(kind=dp), intent(in) :: eigval(:, :)
     integer, intent(in) :: istdout, istderr
@@ -128,25 +125,37 @@ contains
       ierr = sign(1, error%code)
       deallocate (error)
     else
-      call w90_wannier90_readwrite_read(wann90%settings, wann90%atom_data, w90only%band_plot, &
-                                        common_data%cwf_parameters, &
-                                        w90only%dis_control, w90only%dis_spheres, &
-                                        wann90%dis_manifold, wann90%exclude_bands, &
-                                        wann90%fermi_energy_list, w90only%fermi_surface_data, &
-                                        wann90%kmesh_input, wann90%kmesh_info, wann90%kpt_latt, &
-                                        w90only%output_file, w90only%wvfn_read, &
-                                        w90only%wann_control, w90only%proj, w90only%proj_input, &
-                                        w90only%real_space_ham, w90only%select_proj, &
-                                        wann90%kpoint_path, wann90%w90_system, w90only%tran, &
-                                        wann90%print_output, w90only%wann_plot, &
-                                        io_params, wann90%ws_region, w90only%w90_calculation, &
-                                        wann90%real_lattice, physics%bohr, &
-                                        w90only%sitesym%symmetrize_eps, wann90%mp_grid, &
-                                        wann90%num_bands, wann90%num_kpts, w90only%num_proj, &
-                                        wann90%num_wann, w90only%optimisation, &
-                                        w90only%calc_only_A, cp_pp, wann90%gamma_only, &
-                                        w90only%lhasproj, w90only%lsitesymmetry, &
-                                        w90only%use_bloch_phases, seedname, istdout, error, wann90%comm)
+      call w90_wannier90_readwrite_read_special(wann90%settings, wann90%atom_data, &
+                                                wann90%kmesh_input, wann90%kmesh_info, &
+                                                wann90%kpt_latt, wann90%wann_control, &
+                                                wann90%proj, wann90%proj_input, &
+                                                wann90%select_proj, wann90%w90_system, &
+                                                wann90%w90_calculation, &
+                                                wann90%real_lattice, wann90%physics%bohr, &
+                                                wann90%mp_grid, wann90%num_bands, &
+                                                wann90%num_kpts, wann90%num_proj, &
+                                                wann90%num_wann, wann90%gamma_only, &
+                                                wann90%lhasproj, &
+                                                wann90%use_bloch_phases, &
+                                                wann90%dist_kpoints, istdout, error, &
+                                                wann90%comm)
+      call w90_wannier90_readwrite_read(wann90%settings, wann90%band_plot, &
+                                        common_data%cwf_parameters, wann90%dis_control, &
+                                        wann90%dis_spheres, wann90%dis_manifold, &
+                                        wann90%exclude_bands, wann90%fermi_energy_list, &
+                                        wann90%fermi_surface_data, wann90%output_file, &
+                                        wann90%wvfn_read, wann90%wann_control, &
+                                        wann90%real_space_ham, wann90%kpoint_path, &
+                                        wann90%w90_system, wann90%tran, &
+                                        wann90%print_output, wann90%wann_plot, io_params, &
+                                        wann90%ws_region, wann90%real_lattice, &
+                                        wann90%w90_calculation, wann90%physics%bohr, &
+                                        wann90%sitesym%symmetrize_eps, wann90%num_bands, &
+                                        wann90%num_kpts, wann90%num_wann, &
+                                        wann90%optimisation, wann90%calc_only_A, cp_pp, &
+                                        wann90%gamma_only, wann90%lsitesymmetry, &
+                                        wann90%use_bloch_phases, wann90%seedname, istdout, &
+                                        error, wann90%comm)
       wann90%seedname = seedname
       if (mpirank(wann90%comm) /= 0) wann90%print_output%iprint = 0
       if (allocated(error)) then
@@ -158,14 +167,14 @@ contains
         ! If the user is setting values from outside then the eigvals should be associated,
         ! if they're not then we assume its a 'driver' program that needs to read then
         if (eig_ok) then
-          call set_eigval(wann90, eigval)
+          call w90_set_eigval(wann90, eigval)
           pw90%eig_found = .true.
         else
           allocate (read_eigs(wann90%num_bands, wann90%num_kpts))
           call w90_readwrite_read_eigvals(pw90%eig_found, read_eigs, wann90%num_bands, &
                                           wann90%num_kpts, istdout, seedname, error, wann90%comm)
           if (.not. allocated(error)) then
-            call set_eigval(wann90, read_eigs)
+            call w90_set_eigval(wann90, read_eigs)
           endif
         endif
         if (allocated(error)) then
@@ -190,7 +199,8 @@ contains
           else
             call w90_readwrite_read_final_alloc(disentanglement, wann90%dis_manifold, &
                                                 wann90%wannier_data, wann90%num_wann, &
-                                                wann90%num_bands, wann90%num_kpts, error, wann90%comm)
+                                                wann90%num_bands, wann90%num_kpts, error, &
+                                                wann90%comm)
             if (allocated(error)) then
               write (istderr, *) 'Error in read alloc', error%code, error%message
               ierr = sign(1, error%code)
@@ -207,6 +217,80 @@ contains
       endif
     endif
   end subroutine read_all_input
+
+  subroutine read_pw90_input(wann90, pw90, seedname, istdout, istderr, ierr)
+    use w90_wannier90_readwrite, only: w90_wannier90_readwrite_read, w90_extra_io_type, &
+      w90_wannier90_readwrite_read_special
+    use w90_error_base, only: w90_error_type
+    use w90_comms, only: w90_comm_type, mpirank
+    use w90_postw90_readwrite, only: w90_postw90_readwrite_read, pw90_extra_io_type
+    use w90_readwrite, only: w90_readwrite_in_file, w90_readwrite_clean_infile, &
+      w90_readwrite_read_final_alloc, w90_readwrite_read_eigvals
+
+    implicit none
+    type(lib_common_type), intent(inout) :: wann90
+    type(lib_postw90_type), intent(inout) :: pw90
+    !real(kind=dp), intent(in) :: eigval(:, :)
+    integer, intent(in) :: istdout, istderr
+    character(len=*), intent(in) :: seedname
+    integer, intent(out) :: ierr
+    !logical, intent(in) :: eig_ok
+    !
+    !type(w90_physical_constants_type) :: physics
+    type(w90_error_type), allocatable :: error
+    type(w90_extra_io_type) :: io_params
+    real(kind=dp), pointer :: read_eigs(:, :)
+    type(pw90_extra_io_type) :: pw90_params
+    logical :: cp_pp
+    logical :: disentanglement
+
+    ierr = 0
+    call w90_readwrite_in_file(wann90%settings, seedname, error, wann90%comm)
+    if (allocated(error)) then
+      write (istderr, *) 'Error in input file access', error%code, error%message
+      ierr = sign(1, error%code)
+      deallocate (error)
+    else
+      wann90%seedname = seedname
+      if (mpirank(wann90%comm) /= 0) wann90%print_output%iprint = 0
+      call w90_postw90_readwrite_read(wann90%settings, wann90%ws_region, wann90%w90_system, &
+                                      wann90%exclude_bands, wann90%print_output, &
+                                      wann90%kmesh_input, wann90%kpt_latt, wann90%num_kpts, &
+                                      wann90%dis_manifold, wann90%fermi_energy_list, &
+                                      wann90%atom_data, wann90%num_bands, wann90%num_wann, &
+                                      wann90%eigval, wann90%mp_grid, wann90%real_lattice, &
+                                      wann90%kpoint_path, pw90%calculation, pw90%oper_read, &
+                                      pw90%scissors_shift, pw90%effective_model, pw90%spin, &
+                                      pw90%band_deriv_degen, pw90%kpath, pw90%kslice, pw90%dos, &
+                                      pw90%berry, pw90%spin_hall, pw90%gyrotropic, pw90%geninterp, &
+                                      pw90%boltzwann, pw90%eig_found, pw90_params, &
+                                      wann90%gamma_only, wann90%physics%bohr, wann90%optimisation, &
+                                      istdout, seedname, error, wann90%comm)
+      disentanglement = (wann90%num_bands > wann90%num_wann)
+      if (allocated(error)) then
+        write (istderr, *) 'Error in postw90 read', error%code, error%message
+        ierr = sign(1, error%code)
+        deallocate (error)
+      else
+        call w90_readwrite_read_final_alloc(disentanglement, wann90%dis_manifold, &
+                                            wann90%wannier_data, wann90%num_wann, &
+                                            wann90%num_bands, wann90%num_kpts, error, &
+                                            wann90%comm)
+        if (allocated(error)) then
+          write (istderr, *) 'Error in read alloc', error%code, error%message
+          ierr = sign(1, error%code)
+          deallocate (error)
+        else
+          call w90_readwrite_clean_infile(wann90%settings, istdout, seedname, error, wann90%comm)
+          if (allocated(error)) then
+            write (istderr, *) 'Error in input close', error%code, error%message
+            ierr = sign(1, error%code)
+            deallocate (error)
+          endif
+        endif
+      endif
+    endif
+  end subroutine read_pw90_input
 
   subroutine read_checkpoint(wann90, pw90, istdout, istderr, ierr)
     use w90_error_base, only: w90_error_type
@@ -274,8 +358,9 @@ contains
 
     ierr = 0
     call pw90common_wanint_setup(wann90%num_wann, wann90%print_output, wann90%real_lattice, &
-                                 wann90%mp_grid, pw90%effective_model, pw90%ws_vec, istdout, &
-                                 wann90%seedname, wann90%timer, error, wann90%comm)
+                                 wann90%mp_grid, pw90%effective_model, wann90%ws_region, &
+                                 pw90%ws_vec, istdout, wann90%seedname, wann90%timer, error, &
+                                 wann90%comm)
     if (allocated(error)) then
       write (istderr, *) 'Error in post setup', error%code, error%message
       ierr = sign(1, error%code)

@@ -55,9 +55,9 @@ contains
   ! Public procedures have names starting with wanint_
   !================================================!
 
-  subroutine pw90common_wanint_setup(num_wann, print_output, real_lattice, mp_grid, &
-                                     effective_model, wigner_seitz, stdout, seedname, timer, &
-                                     error, comm)
+  subroutine pw90common_wanint_setup(num_wann, print_output, real_lattice, mp_grid, ws_region, &
+                                     ws_distance, effective_model, wigner_seitz, wannier_data, &
+                                     stdout, seedname, timer, error, comm)
     !================================================!
     !
     !! Setup data ready for interpolation
@@ -66,12 +66,17 @@ contains
 
     use w90_constants, only: dp
     use w90_io, only: io_stopwatch_start, io_stopwatch_stop
-    use w90_types, only: print_output_type, timer_list_type
+    use w90_types, only: ws_region_type, ws_distance_type, wannier_data_type, &
+      print_output_type, timer_list_type
     use w90_comms, only: mpirank, w90_comm_type, comms_bcast
     use w90_postw90_types, only: wigner_seitz_type
+    use w90_ws_distance, only: ws_translate_dist
 
     type(print_output_type), intent(in) :: print_output
     type(wigner_seitz_type), intent(inout) :: wigner_seitz
+    type(ws_distance_type), intent(inout) :: ws_distance
+    type(ws_region_type), intent(in) :: ws_region
+    type(wannier_data_type), intent(in) :: wannier_data
     type(timer_list_type), intent(inout) :: timer
     type(w90_comm_type), intent(in) :: comm
     type(w90_error_type), allocatable, intent(out) :: error
@@ -107,8 +112,8 @@ contains
       call comms_bcast(wigner_seitz%nrpts, 1, error, comm)
       if (allocated(error)) return
     else
-      call wignerseitz(print_output, real_lattice, mp_grid, wigner_seitz, stdout, .true., timer, &
-                       error, comm)
+      call wignerseitz(print_output, real_lattice, mp_grid, ws_region, wigner_seitz, stdout, &
+                       .true., timer, error, comm)
       if (allocated(error)) return
     endif
 
@@ -141,8 +146,8 @@ contains
       ! Set up the lattice vectors on the Wigner-Seitz supercell
       ! where the Wannier functions live
 
-      call wignerseitz(print_output, real_lattice, mp_grid, wigner_seitz, stdout, .false., timer, &
-                       error, comm)
+      call wignerseitz(print_output, real_lattice, mp_grid, ws_region, wigner_seitz, stdout, &
+                       .false., timer, error, comm)
       if (allocated(error)) return
 
       ! Convert from reduced to Cartesian coordinates
@@ -151,6 +156,16 @@ contains
         ! Note that 'real_lattice' stores the lattice vectors as *rows*
         wigner_seitz%crvec(:, ir) = matmul(transpose(real_lattice), wigner_seitz%irvec(:, ir))
       end do
+
+      if (ws_region%use_ws_distance) then
+        call ws_translate_dist(ws_distance, ws_region, num_wann, wannier_data%centres, real_lattice, &
+                               mp_grid, wigner_seitz%nrpts, wigner_seitz%irvec, error, comm)
+        if (allocated(error)) return
+      endif
+
+      call wigner_seitz_opt_setup(ws_distance, ws_region, wigner_seitz, num_wann, real_lattice, &
+                                  wigner_seitz%nrpts, error, comm)
+
     endif
 
     return
@@ -868,27 +883,11 @@ contains
     call comms_bcast(u_matrix(1, 1, 1), num_wann*num_wann*num_kpts, error, comm)
     endif
 
-!    if (.not.on_root .and. .not.allocated(m_matrix)) then
-!       allocate(m_matrix(num_wann,num_wann,nntot,num_kpts),stat=ierr)
-!       if (ierr/=0)&
-!            call io_error('Error allocating m_matrix in pw90common_wanint_data_dist')
-!    endif
-!    call comms_bcast(m_matrix(1,1,1,1),num_wann*num_wann*nntot*num_kpts)
-
     call comms_bcast(have_disentangled, 1, error, comm)
     if (allocated(error)) return
 
     if (have_disentangled) then
       if (.not. on_root) then
-
-        ! Do we really need these 'if not allocated'? Didn't use them for
-        ! eigval and kpt_latt above!
-
-!          if (.not.allocated(u_matrix_opt)) then
-!             allocate(u_matrix_opt(num_bands,num_wann,num_kpts),stat=ierr)
-!             if (ierr/=0)&
-!              call io_error('Error allocating u_matrix_opt in pw90common_wanint_data_dist')
-!          endif
 
         if (.not. allocated(dis_manifold%lwindow)) then
           allocate (dis_manifold%lwindow(num_bands, num_kpts), stat=ierr)
@@ -1054,45 +1053,18 @@ contains
     real(kind=dp)    :: rdotk
     complex(kind=dp) :: phase_fac
 
-    if (ws_region%use_ws_distance) then
-      call ws_translate_dist(ws_distance, ws_region, num_wann, wannier_data%centres, real_lattice, &
-                             mp_grid, wigner_seitz%nrpts, wigner_seitz%irvec, error, comm)
-      if (allocated(error)) return
-    endif
-
     OO(:, :) = cmplx_0
-    do ir = 1, wigner_seitz%nrpts
-! [lp] Shift the WF to have the minimum distance IJ, see also ws_distance.F90
-      if (ws_region%use_ws_distance) then
-        do j = 1, num_wann
-        do i = 1, num_wann
-          do ideg = 1, ws_distance%ndeg(i, j, ir)
-            rdotk = twopi*dot_product(kpt(:), real(ws_distance%irdist(:, ideg, i, j, ir), dp))
-            phase_fac = cmplx(cos(rdotk), sin(rdotk), dp) &
-                        /real(wigner_seitz%ndegen(ir)*ws_distance%ndeg(i, j, ir), dp)
-            if (alpha == 0) then
-              OO(i, j) = OO(i, j) + phase_fac*OO_R(i, j, ir)
-            elseif (alpha == 1 .or. alpha == 2 .or. alpha == 3) then
-              OO(i, j) = OO(i, j) + cmplx_i*ws_distance%crdist(alpha, ideg, i, j, ir) &
-                         *phase_fac*OO_R(i, j, ir)
-            else
-              stop 'wrong value of alpha in pw90common_fourier_R_to_k'
-            endif
-          enddo
-        enddo
-        enddo
+    do ir = 1, wigner_seitz%nrpts_pw90
+      ! [lp] Original code, without IJ-dependent shift:
+      rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec_pw90(:, ir))
+      phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)
+      if (alpha == 0) then
+        OO(:, :) = OO(:, :) + phase_fac*OO_R(:, :, ir)
+      elseif (alpha == 1 .or. alpha == 2 .or. alpha == 3) then
+        OO(:, :) = OO(:, :) + &
+                   cmplx_i*wigner_seitz%crvec_pw90(alpha, ir)*phase_fac*OO_R(:, :, ir)
       else
-        ! [lp] Original code, without IJ-dependent shift:
-        rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec(:, ir))
-        phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)/real(wigner_seitz%ndegen(ir), dp)
-        if (alpha == 0) then
-          OO(:, :) = OO(:, :) + phase_fac*OO_R(:, :, ir)
-        elseif (alpha == 1 .or. alpha == 2 .or. alpha == 3) then
-          OO(:, :) = OO(:, :) + &
-                     cmplx_i*wigner_seitz%crvec(alpha, ir)*phase_fac*OO_R(:, :, ir)
-        else
-          stop 'wrong value of alpha in pw90common_fourier_R_to_k'
-        endif
+        stop 'wrong value of alpha in pw90common_fourier_R_to_k'
       endif
 
     enddo
@@ -1145,50 +1117,21 @@ contains
     real(kind=dp)    :: rdotk
     complex(kind=dp) :: phase_fac
 
-    if (ws_region%use_ws_distance) then
-      call ws_translate_dist(ws_distance, ws_region, num_wann, wannier_data%centres, real_lattice, &
-                             mp_grid, wigner_seitz%nrpts, wigner_seitz%irvec, error, comm)
-      if (allocated(error)) return
-    endif
-
     if (present(OO)) OO = cmplx_0
     if (present(OO_dx)) OO_dx = cmplx_0
     if (present(OO_dy)) OO_dy = cmplx_0
     if (present(OO_dz)) OO_dz = cmplx_0
-    do ir = 1, wigner_seitz%nrpts
-! [lp] Shift the WF to have the minimum distance IJ, see also ws_distance.F90
-      if (ws_region%use_ws_distance) then
-        do j = 1, num_wann
-        do i = 1, num_wann
-          do ideg = 1, ws_distance%ndeg(i, j, ir)
-            rdotk = twopi*dot_product(kpt(:), real(ws_distance%irdist(:, ideg, i, j, ir), dp))
-            phase_fac = cmplx(cos(rdotk), sin(rdotk), dp) &
-                        /real(wigner_seitz%ndegen(ir)*ws_distance%ndeg(i, j, ir), dp)
-            if (present(OO)) OO(i, j) = OO(i, j) + phase_fac*OO_R(i, j, ir)
-            if (present(OO_dx)) OO_dx(i, j) = OO_dx(i, j) + &
-                                              cmplx_i*ws_distance%crdist(1, ideg, i, j, ir)* &
-                                              phase_fac*OO_R(i, j, ir)
-            if (present(OO_dy)) OO_dy(i, j) = OO_dy(i, j) + &
-                                              cmplx_i*ws_distance%crdist(2, ideg, i, j, ir)* &
-                                              phase_fac*OO_R(i, j, ir)
-            if (present(OO_dz)) OO_dz(i, j) = OO_dz(i, j) + &
-                                              cmplx_i*ws_distance%crdist(3, ideg, i, j, ir)* &
-                                              phase_fac*OO_R(i, j, ir)
-          enddo
-        enddo
-        enddo
-      else
+    do ir = 1, wigner_seitz%nrpts_pw90
 ! [lp] Original code, without IJ-dependent shift:
-        rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec(:, ir))
-        phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)/real(wigner_seitz%ndegen(ir), dp)
-        if (present(OO)) OO(:, :) = OO(:, :) + phase_fac*OO_R(:, :, ir)
-        if (present(OO_dx)) OO_dx(:, :) = OO_dx(:, :) + &
-                                          cmplx_i*wigner_seitz%crvec(1, ir)*phase_fac*OO_R(:, :, ir)
-        if (present(OO_dy)) OO_dy(:, :) = OO_dy(:, :) + &
-                                          cmplx_i*wigner_seitz%crvec(2, ir)*phase_fac*OO_R(:, :, ir)
-        if (present(OO_dz)) OO_dz(:, :) = OO_dz(:, :) + &
-                                          cmplx_i*wigner_seitz%crvec(3, ir)*phase_fac*OO_R(:, :, ir)
-      endif
+      rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec_pw90(:, ir))
+      phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)
+      if (present(OO)) OO(:, :) = OO(:, :) + phase_fac*OO_R(:, :, ir)
+      if (present(OO_dx)) OO_dx(:, :) = OO_dx(:, :) + &
+                                        cmplx_i*wigner_seitz%crvec_pw90(1, ir)*phase_fac*OO_R(:, :, ir)
+      if (present(OO_dy)) OO_dy(:, :) = OO_dy(:, :) + &
+                                        cmplx_i*wigner_seitz%crvec_pw90(2, ir)*phase_fac*OO_R(:, :, ir)
+      if (present(OO_dz)) OO_dz(:, :) = OO_dz(:, :) + &
+                                        cmplx_i*wigner_seitz%crvec_pw90(3, ir)*phase_fac*OO_R(:, :, ir)
     enddo
 
   end subroutine pw90common_fourier_R_to_k_new
@@ -1240,68 +1183,29 @@ contains
     integer          :: ir, i, j, ideg, a, b
     real(kind=dp)    :: rdotk
     complex(kind=dp) :: phase_fac
-
-    if (ws_region%use_ws_distance) then
-      call ws_translate_dist(ws_distance, ws_region, num_wann, wannier_data%centres, real_lattice, &
-                             mp_grid, wigner_seitz%nrpts, wigner_seitz%irvec, error, comm)
-      if (allocated(error)) return
-    endif
-
     if (present(OO)) OO = cmplx_0
     if (present(OO_da)) OO_da = cmplx_0
     if (present(OO_dadb)) OO_dadb = cmplx_0
-    do ir = 1, wigner_seitz%nrpts
-! [lp] Shift the WF to have the minimum distance IJ, see also ws_distance.F90
-      if (ws_region%use_ws_distance) then
-        do j = 1, num_wann
-        do i = 1, num_wann
-          do ideg = 1, ws_distance%ndeg(i, j, ir)
-
-            rdotk = twopi*dot_product(kpt(:), real(ws_distance%irdist(:, ideg, i, j, ir), dp))
-            phase_fac = cmplx(cos(rdotk), sin(rdotk), dp) &
-                        /real(wigner_seitz%ndegen(ir)*ws_distance%ndeg(i, j, ir), dp)
-            if (present(OO)) OO(i, j) = OO(i, j) + phase_fac*OO_R(i, j, ir)
-            if (present(OO_da)) then
-              do a = 1, 3
-                OO_da(i, j, a) = OO_da(i, j, a) + cmplx_i*ws_distance%crdist(a, ideg, i, j, ir)* &
-                                 phase_fac*OO_R(i, j, ir)
-              enddo
-            endif
-            if (present(OO_dadb)) then
-              do a = 1, 3
-                do b = 1, 3
-                  OO_dadb(i, j, a, b) = OO_dadb(i, j, a, b) &
-                                        - ws_distance%crdist(a, ideg, i, j, ir) &
-                                        *ws_distance%crdist(b, ideg, i, j, ir) &
-                                        *phase_fac*OO_R(i, j, ir)
-                enddo
-              enddo
-            end if
-
-          enddo
-        enddo
-        enddo
-      else
+    do ir = 1, wigner_seitz%nrpts_pw90
 ! [lp] Original code, without IJ-dependent shift:
-        rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec(:, ir))
-        phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)/real(wigner_seitz%ndegen(ir), dp)
-        if (present(OO)) OO(:, :) = OO(:, :) + phase_fac*OO_R(:, :, ir)
-        if (present(OO_da)) then
-          do a = 1, 3
-            OO_da(:, :, a) = OO_da(:, :, a) + cmplx_i*wigner_seitz%crvec(a, ir)*phase_fac &
-                             *OO_R(:, :, ir)
-          enddo
-        endif
-        if (present(OO_dadb)) then
-          do a = 1, 3
-            do b = 1, 3
-              OO_dadb(:, :, a, b) = OO_dadb(:, :, a, b) - &
-                                    wigner_seitz%crvec(a, ir)*wigner_seitz%crvec(b, ir)*phase_fac &
-                                    *OO_R(:, :, ir)
-            enddo
-          enddo
-        end if
+      rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec_pw90(:, ir))
+      phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)
+      if (present(OO)) OO(:, :) = OO(:, :) + phase_fac*OO_R(:, :, ir)
+      if (present(OO_da)) then
+        do a = 1, 3
+          OO_da(:, :, a) = OO_da(:, :, a) + cmplx_i*wigner_seitz%crvec_pw90(a, ir)*phase_fac &
+                           *OO_R(:, :, ir)
+        enddo
       endif
+      if (present(OO_dadb)) then
+        do a = 1, 3
+          do b = 1, 3
+            OO_dadb(:, :, a, b) = OO_dadb(:, :, a, b) - &
+                                  wigner_seitz%crvec_pw90(a, ir)*wigner_seitz%crvec_pw90(b, ir)*phase_fac &
+                                  *OO_R(:, :, ir)
+          enddo
+        enddo
+      end if
     enddo
 
   end subroutine pw90common_fourier_R_to_k_new_second_d
@@ -1358,109 +1262,54 @@ contains
     real(kind=dp) :: inv_lattice(3, 3)
     integer :: ir, i, j, ideg, a, b
     real(kind=dp) :: rdotk
-    real(kind=dp) :: local_wannier_centres(3, num_wann), wannier_centres_frac(3, num_wann)
+    real(kind=dp) :: wannier_centres_frac(3, num_wann)
     real(kind=dp) :: r_sum(3)
     complex(kind=dp) :: phase_fac
 
     r_sum = 0.d0
 
-    if (ws_region%use_ws_distance) then
-      call ws_translate_dist(ws_distance, ws_region, num_wann, wannier_data%centres, real_lattice, &
-                             mp_grid, wigner_seitz%nrpts, wigner_seitz%irvec, error, comm)
-      if (allocated(error)) return
-    endif
-
-    ! calculate wannier centres in cartesian
-    local_wannier_centres(:, :) = 0.d0
-    do j = 1, num_wann
-      do ir = 1, wigner_seitz%nrpts
-        if ((wigner_seitz%irvec(1, ir) .eq. 0) .and. (wigner_seitz%irvec(2, ir) .eq. 0) .and. &
-            (wigner_seitz%irvec(3, ir) .eq. 0)) then
-          local_wannier_centres(1, j) = real(oo_a_R(j, j, ir, 1))
-          local_wannier_centres(2, j) = real(oo_a_R(j, j, ir, 2))
-          local_wannier_centres(3, j) = real(oo_a_R(j, j, ir, 3))
-        endif
-      enddo
-    enddo
     ! rotate wannier centres from cartesian to fractional coordinates
     wannier_centres_frac(:, :) = 0.d0
     call utility_inverse_mat(real_lattice, inv_lattice)
     do ir = 1, num_wann
-      call utility_cart_to_frac(local_wannier_centres(:, ir), wannier_centres_frac(:, ir), &
-                                inv_lattice)
+      call utility_cart_to_frac(wigner_seitz%wannier_centres_from_AA_R(:, ir), &
+                                wannier_centres_frac(:, ir), inv_lattice)
     enddo
 
     if (present(OO)) OO = cmplx_0
     if (present(OO_da)) OO_da = cmplx_0
     if (present(OO_dadb)) OO_dadb = cmplx_0
-    do ir = 1, wigner_seitz%nrpts
-! [lp] Shift the WF to have the minimum distance IJ, see also ws_distance.F90
-      if (ws_region%use_ws_distance) then
-        do j = 1, num_wann
-        do i = 1, num_wann
-          do ideg = 1, ws_distance%ndeg(i, j, ir)
-
-            rdotk = twopi*dot_product(kpt(:), real(ws_distance%irdist(:, ideg, i, j, ir) + &
-                                                   wannier_centres_frac(:, j) - wannier_centres_frac(:, i), dp))
-            phase_fac = cmplx(cos(rdotk), sin(rdotk), dp) &
-                        /real(wigner_seitz%ndegen(ir)*ws_distance%ndeg(i, j, ir), dp)
-            if (present(OO)) OO(i, j) = OO(i, j) + phase_fac*OO_R(i, j, ir)
-            if (present(OO_da)) then
-              do a = 1, 3
-                OO_da(i, j, a) = OO_da(i, j, a) + cmplx_i* &
-                                 (ws_distance%crdist(a, ideg, i, j, ir) &
-                                  + local_wannier_centres(a, j) &
-                                  - local_wannier_centres(a, i))*phase_fac*OO_R(i, j, ir)
-              enddo
-            endif
-            if (present(OO_dadb)) then
-              do a = 1, 3
-                do b = 1, 3
-                  OO_dadb(i, j, a, b) = OO_dadb(i, j, a, b) - &
-                                        (ws_distance%crdist(a, ideg, i, j, ir) &
-                                         + local_wannier_centres(a, j) &
-                                         - local_wannier_centres(a, i)) &
-                                        *(ws_distance%crdist(b, ideg, i, j, ir) &
-                                          + local_wannier_centres(b, j) - &
-                                          local_wannier_centres(b, i))*phase_fac*OO_R(i, j, ir)
-                enddo
-              enddo
-            end if
-
-          enddo
-        enddo
-        enddo
-      else
+    do ir = 1, wigner_seitz%nrpts_pw90
 ! [lp] Original code, without IJ-dependent shift:
-        do j = 1, num_wann
-          do i = 1, num_wann
-            r_sum(:) = real(wigner_seitz%irvec(:, ir)) &
-                       + wannier_centres_frac(:, j) - wannier_centres_frac(:, i)
-            rdotk = twopi*dot_product(kpt(:), r_sum(:))
-            phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)/real(wigner_seitz%ndegen(ir), dp)
-            if (present(OO)) OO(i, j) = OO(i, j) + phase_fac*OO_R(i, j, ir)
-            if (present(OO_da)) then
-              do a = 1, 3
-                OO_da(i, j, a) = OO_da(i, j, a) + cmplx_i* &
-                                 (wigner_seitz%crvec(a, ir) + local_wannier_centres(a, j) - &
-                                  local_wannier_centres(a, i))*phase_fac*OO_R(i, j, ir)
+      do j = 1, num_wann
+        do i = 1, num_wann
+          r_sum(:) = real(wigner_seitz%irvec_pw90(:, ir)) &
+                     + wannier_centres_frac(:, j) - wannier_centres_frac(:, i)
+          rdotk = twopi*dot_product(kpt(:), r_sum(:))
+          phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)
+          if (present(OO)) OO(i, j) = OO(i, j) + phase_fac*OO_R(i, j, ir)
+          if (present(OO_da)) then
+            do a = 1, 3
+              OO_da(i, j, a) = OO_da(i, j, a) + cmplx_i* &
+                               (wigner_seitz%crvec_pw90(a, ir) + wigner_seitz%wannier_centres_from_AA_R(a, j) - &
+                                wigner_seitz%wannier_centres_from_AA_R(a, i))*phase_fac*OO_R(i, j, ir)
+            enddo
+          endif
+          if (present(OO_dadb)) then
+            do a = 1, 3
+              do b = 1, 3
+                OO_dadb(i, j, a, b) = &
+                  OO_dadb(i, j, a, b) - &
+                  (wigner_seitz%crvec_pw90(a, ir) + wigner_seitz%wannier_centres_from_AA_R(a, j) - &
+                   wigner_seitz%wannier_centres_from_AA_R(a, i))*(wigner_seitz%crvec_pw90(b, ir) + &
+                                                                  wigner_seitz%wannier_centres_from_AA_R(b, j) - &
+                                                                  wigner_seitz%wannier_centres_from_AA_R(b, i))* &
+                  phase_fac*OO_R(i, j, ir)
               enddo
-            endif
-            if (present(OO_dadb)) then
-              do a = 1, 3
-                do b = 1, 3
-                  OO_dadb(i, j, a, b) = &
-                    OO_dadb(i, j, a, b) - &
-                    (wigner_seitz%crvec(a, ir) + local_wannier_centres(a, j) - &
-                     local_wannier_centres(a, i))*(wigner_seitz%crvec(b, ir) + &
-                                                   local_wannier_centres(b, j) - local_wannier_centres(b, i))* &
-                    phase_fac*OO_R(i, j, ir)
-                enddo
-              enddo
-            end if
-          enddo
+            enddo
+          end if
         enddo
-      endif
+      enddo
     enddo
 
   end subroutine pw90common_fourier_R_to_k_new_second_d_TB_conv
@@ -1506,68 +1355,27 @@ contains
     real(kind=dp)    :: rdotk
     complex(kind=dp) :: phase_fac
 
-    if (ws_region%use_ws_distance) then
-      call ws_translate_dist(ws_distance, ws_region, num_wann, wannier_data%centres, real_lattice, &
-                             mp_grid, wigner_seitz%nrpts, wigner_seitz%irvec, error, comm)
-      if (allocated(error)) return
-    endif
-
     if (present(OO_true)) OO_true = cmplx_0
     if (present(OO_pseudo)) OO_pseudo = cmplx_0
-    do ir = 1, wigner_seitz%nrpts
-! [lp] Shift the WF to have the minimum distance IJ, see also ws_distance.F90
-      if (ws_region%use_ws_distance) then
-        do j = 1, num_wann
-        do i = 1, num_wann
-          do ideg = 1, ws_distance%ndeg(i, j, ir)
-            rdotk = twopi*dot_product(kpt(:), real(ws_distance%irdist(:, ideg, i, j, ir), dp))
-            phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)/real(wigner_seitz%ndegen(ir) &
-                                                               *ws_distance%ndeg(i, j, ir), dp)
-            if (present(OO_true)) then
-              OO_true(i, j, 1) = OO_true(i, j, 1) + phase_fac*OO_R(i, j, ir, 1)
-              OO_true(i, j, 2) = OO_true(i, j, 2) + phase_fac*OO_R(i, j, ir, 2)
-              OO_true(i, j, 3) = OO_true(i, j, 3) + phase_fac*OO_R(i, j, ir, 3)
-            endif
-            if (present(OO_pseudo)) then
-              OO_pseudo(i, j, 1) = OO_pseudo(i, j, 1) &
-                                   + cmplx_i*ws_distance%crdist(2, ideg, i, j, ir) &
-                                   *phase_fac*OO_R(i, j, ir, 3) &
-                                   - cmplx_i*ws_distance%crdist(3, ideg, i, j, ir) &
-                                   *phase_fac*OO_R(i, j, ir, 2)
-              OO_pseudo(i, j, 2) = OO_pseudo(i, j, 2) &
-                                   + cmplx_i*ws_distance%crdist(3, ideg, i, j, ir) &
-                                   *phase_fac*OO_R(i, j, ir, 1) &
-                                   - cmplx_i*ws_distance%crdist(1, ideg, i, j, ir) &
-                                   *phase_fac*OO_R(i, j, ir, 3)
-              OO_pseudo(i, j, 3) = OO_pseudo(i, j, 3) &
-                                   + cmplx_i*ws_distance%crdist(1, ideg, i, j, ir) &
-                                   *phase_fac*OO_R(i, j, ir, 2) &
-                                   - cmplx_i*ws_distance%crdist(2, ideg, i, j, ir) &
-                                   *phase_fac*OO_R(i, j, ir, 1)
-            endif
-          enddo
-        enddo
-        enddo
-      else
+    do ir = 1, wigner_seitz%nrpts_pw90
 ! [lp] Original code, without IJ-dependent shift:
-        rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec(:, ir))
-        phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)/real(wigner_seitz%ndegen(ir), dp)
-        if (present(OO_true)) then
-          OO_true(:, :, 1) = OO_true(:, :, 1) + phase_fac*OO_R(:, :, ir, 1)
-          OO_true(:, :, 2) = OO_true(:, :, 2) + phase_fac*OO_R(:, :, ir, 2)
-          OO_true(:, :, 3) = OO_true(:, :, 3) + phase_fac*OO_R(:, :, ir, 3)
-        endif
-        if (present(OO_pseudo)) then
-          OO_pseudo(:, :, 1) = OO_pseudo(:, :, 1) &
-                               + cmplx_i*wigner_seitz%crvec(2, ir)*phase_fac*OO_R(:, :, ir, 3) &
-                               - cmplx_i*wigner_seitz%crvec(3, ir)*phase_fac*OO_R(:, :, ir, 2)
-          OO_pseudo(:, :, 2) = OO_pseudo(:, :, 2) &
-                               + cmplx_i*wigner_seitz%crvec(3, ir)*phase_fac*OO_R(:, :, ir, 1) &
-                               - cmplx_i*wigner_seitz%crvec(1, ir)*phase_fac*OO_R(:, :, ir, 3)
-          OO_pseudo(:, :, 3) = OO_pseudo(:, :, 3) &
-                               + cmplx_i*wigner_seitz%crvec(1, ir)*phase_fac*OO_R(:, :, ir, 2) &
-                               - cmplx_i*wigner_seitz%crvec(2, ir)*phase_fac*OO_R(:, :, ir, 1)
-        endif
+      rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec_pw90(:, ir))
+      phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)
+      if (present(OO_true)) then
+        OO_true(:, :, 1) = OO_true(:, :, 1) + phase_fac*OO_R(:, :, ir, 1)
+        OO_true(:, :, 2) = OO_true(:, :, 2) + phase_fac*OO_R(:, :, ir, 2)
+        OO_true(:, :, 3) = OO_true(:, :, 3) + phase_fac*OO_R(:, :, ir, 3)
+      endif
+      if (present(OO_pseudo)) then
+        OO_pseudo(:, :, 1) = OO_pseudo(:, :, 1) &
+                             + cmplx_i*wigner_seitz%crvec_pw90(2, ir)*phase_fac*OO_R(:, :, ir, 3) &
+                             - cmplx_i*wigner_seitz%crvec_pw90(3, ir)*phase_fac*OO_R(:, :, ir, 2)
+        OO_pseudo(:, :, 2) = OO_pseudo(:, :, 2) &
+                             + cmplx_i*wigner_seitz%crvec_pw90(3, ir)*phase_fac*OO_R(:, :, ir, 1) &
+                             - cmplx_i*wigner_seitz%crvec_pw90(1, ir)*phase_fac*OO_R(:, :, ir, 3)
+        OO_pseudo(:, :, 3) = OO_pseudo(:, :, 3) &
+                             + cmplx_i*wigner_seitz%crvec_pw90(1, ir)*phase_fac*OO_R(:, :, ir, 2) &
+                             - cmplx_i*wigner_seitz%crvec_pw90(2, ir)*phase_fac*OO_R(:, :, ir, 1)
       endif
     enddo
 
@@ -1617,59 +1425,24 @@ contains
     real(kind=dp)    :: rdotk
     complex(kind=dp) :: phase_fac
 
-    if (ws_region%use_ws_distance) then
-      call ws_translate_dist(ws_distance, ws_region, num_wann, wannier_data%centres, real_lattice, &
-                             mp_grid, wigner_seitz%nrpts, wigner_seitz%irvec, error, comm)
-      if (allocated(error)) return
-    endif
-
     if (present(OO_da)) OO_da = cmplx_0
     if (present(OO_dadb)) OO_dadb = cmplx_0
-    do ir = 1, wigner_seitz%nrpts
-! [lp] Shift the WF to have the minimum distance IJ, see also ws_distance.F90
-      if (ws_region%use_ws_distance) then
-        do j = 1, num_wann
-        do i = 1, num_wann
-          do ideg = 1, ws_distance%ndeg(i, j, ir)
-
-            rdotk = twopi*dot_product(kpt(:), real(ws_distance%irdist(:, ideg, i, j, ir), dp))
-            phase_fac = cmplx(cos(rdotk), sin(rdotk), dp) &
-                        /real(wigner_seitz%ndegen(ir)*ws_distance%ndeg(i, j, ir), dp)
-            if (present(OO_da)) then
-              OO_da(i, j, 1) = OO_da(i, j, 1) + phase_fac*OO_R(i, j, ir, 1)
-              OO_da(i, j, 2) = OO_da(i, j, 2) + phase_fac*OO_R(i, j, ir, 2)
-              OO_da(i, j, 3) = OO_da(i, j, 3) + phase_fac*OO_R(i, j, ir, 3)
-            endif
-            if (present(OO_dadb)) then
-              do a = 1, 3
-                do b = 1, 3
-                  OO_dadb(i, j, a, b) = OO_dadb(i, j, a, b) &
-                                        + cmplx_i*ws_distance%crdist(b, ideg, i, j, ir) &
-                                        *phase_fac*OO_R(i, j, ir, a)
-                enddo
-              enddo
-            endif
-
-          enddo
-        enddo
-        enddo
-      else
+    do ir = 1, wigner_seitz%nrpts_pw90
 ! [lp] Original code, without IJ-dependent shift:
-        rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec(:, ir))
-        phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)/real(wigner_seitz%ndegen(ir), dp)
-        if (present(OO_da)) then
-          OO_da(:, :, 1) = OO_da(:, :, 1) + phase_fac*OO_R(:, :, ir, 1)
-          OO_da(:, :, 2) = OO_da(:, :, 2) + phase_fac*OO_R(:, :, ir, 2)
-          OO_da(:, :, 3) = OO_da(:, :, 3) + phase_fac*OO_R(:, :, ir, 3)
-        endif
-        if (present(OO_dadb)) then
-          do a = 1, 3
-            do b = 1, 3
-              OO_dadb(:, :, a, b) = OO_dadb(:, :, a, b) &
-                                    + cmplx_i*wigner_seitz%crvec(b, ir)*phase_fac*OO_R(:, :, ir, a)
-            enddo
+      rdotk = twopi*dot_product(kpt(:), wigner_seitz%irvec_pw90(:, ir))
+      phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)
+      if (present(OO_da)) then
+        OO_da(:, :, 1) = OO_da(:, :, 1) + phase_fac*OO_R(:, :, ir, 1)
+        OO_da(:, :, 2) = OO_da(:, :, 2) + phase_fac*OO_R(:, :, ir, 2)
+        OO_da(:, :, 3) = OO_da(:, :, 3) + phase_fac*OO_R(:, :, ir, 3)
+      endif
+      if (present(OO_dadb)) then
+        do a = 1, 3
+          do b = 1, 3
+            OO_dadb(:, :, a, b) = OO_dadb(:, :, a, b) &
+                                  + cmplx_i*wigner_seitz%crvec_pw90(b, ir)*phase_fac*OO_R(:, :, ir, a)
           enddo
-        endif
+        enddo
       endif
     enddo
 
@@ -1725,38 +1498,20 @@ contains
     integer          :: ir, i, j, ideg, a, b
     real(kind=dp)    :: rdotk
     complex(kind=dp) :: phase_fac
-    real(kind=dp)    :: local_wannier_centres(3, num_wann), wannier_centres_frac(3, num_wann)
-    real(kind=dp)                                                 :: r_sum(3)
+    real(kind=dp)    :: wannier_centres_frac(3, num_wann)
+    real(kind=dp)    :: r_sum(3)
 
     r_sum = 0.d0
-
-    if (ws_region%use_ws_distance) then
-      call ws_translate_dist(ws_distance, ws_region, num_wann, wannier_data%centres, real_lattice, &
-                             mp_grid, wigner_seitz%nrpts, wigner_seitz%irvec, error, comm)
-      if (allocated(error)) return
-    endif
 
     if (present(OO_da)) OO_da = cmplx_0
     if (present(OO_dadb)) OO_dadb = cmplx_0
 
-    ! calculate wannier centres in cartesian
-    local_wannier_centres(:, :) = 0.d0
-    do j = 1, num_wann
-      do ir = 1, wigner_seitz%nrpts
-        if ((wigner_seitz%irvec(1, ir) .eq. 0) .and. (wigner_seitz%irvec(2, ir) .eq. 0) &
-            .and. (wigner_seitz%irvec(3, ir) .eq. 0)) then
-          local_wannier_centres(1, j) = real(OO_R(j, j, ir, 1))
-          local_wannier_centres(2, j) = real(OO_R(j, j, ir, 2))
-          local_wannier_centres(3, j) = real(OO_R(j, j, ir, 3))
-        endif
-      enddo
-    enddo
     ! rotate wannier centres from cartesian to fractional coordinates
     wannier_centres_frac(:, :) = 0.d0
     call utility_inverse_mat(real_lattice, inv_lattice)
     do ir = 1, num_wann
-      call utility_cart_to_frac(local_wannier_centres(:, ir), wannier_centres_frac(:, ir), &
-                                inv_lattice)
+      call utility_cart_to_frac(wigner_seitz%wannier_centres_from_AA_R(:, ir), &
+                                wannier_centres_frac(:, ir), inv_lattice)
     enddo
 
 !    print *, 'wannier_centres_frac'
@@ -1776,111 +1531,64 @@ contains
 !    enddo
 !    stop
 
-    do ir = 1, wigner_seitz%nrpts
-! [lp] Shift the WF to have the minimum distance IJ, see also ws_distance.F90
-      if (ws_region%use_ws_distance) then
-        do j = 1, num_wann
-        do i = 1, num_wann
-          do ideg = 1, ws_distance%ndeg(i, j, ir)
-
-            rdotk = twopi*dot_product(kpt(:), real(ws_distance%irdist(:, ideg, i, j, ir) + &
-                                                   wannier_centres_frac(:, j) &
-                                                   - wannier_centres_frac(:, i), dp))
-            phase_fac = cmplx(cos(rdotk), sin(rdotk), dp) &
-                        /real(wigner_seitz%ndegen(ir)*ws_distance%ndeg(i, j, ir), dp)
-            if (present(OO_da)) then
-              ! if we are at the origin and at the same band, then the
-              ! matrix element is zero in this convention
-              if ((wigner_seitz%irvec(1, ir) .eq. 0) .and. &
-                  (wigner_seitz%irvec(2, ir) .eq. 0) .and. &
-                  (wigner_seitz%irvec(3, ir) .eq. 0) .and. (i .eq. j)) then
-                cycle
-              else
-                OO_da(i, j, 1) = OO_da(i, j, 1) + phase_fac*OO_R(i, j, ir, 1)
-                OO_da(i, j, 2) = OO_da(i, j, 2) + phase_fac*OO_R(i, j, ir, 2)
-                OO_da(i, j, 3) = OO_da(i, j, 3) + phase_fac*OO_R(i, j, ir, 3)
-              endif
-            endif
-            if (present(OO_dadb)) then
-              ! same skip as before
-              if ((wigner_seitz%irvec(1, ir) .eq. 0) .and. &
-                  (wigner_seitz%irvec(2, ir) .eq. 0) .and. &
-                  (wigner_seitz%irvec(3, ir) .eq. 0) .and. (i .eq. j)) then
-                cycle
-              else
-                do a = 1, 3
-                  do b = 1, 3
-                    OO_dadb(i, j, a, b) = OO_dadb(i, j, a, b) + cmplx_i* &
-                                          (ws_distance%crdist(b, ideg, i, j, ir) &
-                                           + local_wannier_centres(b, j) &
-                                           - local_wannier_centres(b, i)) &
-                                          *phase_fac*OO_R(i, j, ir, a)
-                  enddo
-                enddo
-              endif
-            endif
-
-          enddo
-        enddo
-        enddo
-      else
+    do ir = 1, wigner_seitz%nrpts_pw90
 ! [lp] Original code, without IJ-dependent shift:
-        do j = 1, num_wann
-        do i = 1, num_wann
-          r_sum(:) = real(wigner_seitz%irvec(:, ir)) &
-                     + wannier_centres_frac(:, j) - wannier_centres_frac(:, i)
-          rdotk = twopi*dot_product(kpt(:), r_sum(:))
-          phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)/real(wigner_seitz%ndegen(ir), dp)
-          if (present(OO_da)) then
-            ! if we are at the origin and at the same band, then the
-            ! matrix element is zero in this convention
-            if ((wigner_seitz%irvec(1, ir) .eq. 0) .and. (wigner_seitz%irvec(2, ir) .eq. 0) .and. &
-                (wigner_seitz%irvec(3, ir) .eq. 0) .and. (i .eq. j)) then
-              OO_da(i, j, 1) = OO_da(i, j, 1) + phase_fac*(OO_R(i, j, ir, 1) &
-                                                           - local_wannier_centres(1, j))
-              OO_da(i, j, 2) = OO_da(i, j, 2) + phase_fac*(OO_R(i, j, ir, 2) &
-                                                           - local_wannier_centres(2, j))
-              OO_da(i, j, 3) = OO_da(i, j, 3) + phase_fac*(OO_R(i, j, ir, 3) &
-                                                           - local_wannier_centres(3, j))
+      do j = 1, num_wann
+      do i = 1, num_wann
+        r_sum(:) = real(wigner_seitz%irvec_pw90(:, ir)) &
+                   + wannier_centres_frac(:, j) - wannier_centres_frac(:, i)
+        rdotk = twopi*dot_product(kpt(:), r_sum(:))
+        phase_fac = cmplx(cos(rdotk), sin(rdotk), dp)
+        if (present(OO_da)) then
+          ! if we are at the origin and at the same band, then the
+          ! matrix element is zero in this convention
+          if ((wigner_seitz%irvec_pw90(1, ir) .eq. 0) .and. (wigner_seitz%irvec_pw90(2, ir) .eq. 0) .and. &
+              (wigner_seitz%irvec_pw90(3, ir) .eq. 0) .and. (i .eq. j)) then
+            OO_da(i, j, 1) = OO_da(i, j, 1) + phase_fac*(OO_R(i, j, ir, 1) &
+                                                         - wigner_seitz%wannier_centres_from_AA_R(1, j))
+            OO_da(i, j, 2) = OO_da(i, j, 2) + phase_fac*(OO_R(i, j, ir, 2) &
+                                                         - wigner_seitz%wannier_centres_from_AA_R(2, j))
+            OO_da(i, j, 3) = OO_da(i, j, 3) + phase_fac*(OO_R(i, j, ir, 3) &
+                                                         - wigner_seitz%wannier_centres_from_AA_R(3, j))
 !            print *, 'OO_R(i,j,ir,1)', OO_R(i,j,ir,1)
 !            print *, 'local_wannier_centres(1,j)', local_wannier_centres(1,j)
 !            print *, 'OO_R(i,j,ir,2)', OO_R(i,j,ir,2)
 !            print *, 'local_wannier_centres(2,j)', local_wannier_centres(2,j)
-              cycle
-            else
-              OO_da(i, j, 1) = OO_da(i, j, 1) + phase_fac*OO_R(i, j, ir, 1)
-              OO_da(i, j, 2) = OO_da(i, j, 2) + phase_fac*OO_R(i, j, ir, 2)
-              OO_da(i, j, 3) = OO_da(i, j, 3) + phase_fac*OO_R(i, j, ir, 3)
-            endif
+!            cycle
+          else
+            OO_da(i, j, 1) = OO_da(i, j, 1) + phase_fac*OO_R(i, j, ir, 1)
+            OO_da(i, j, 2) = OO_da(i, j, 2) + phase_fac*OO_R(i, j, ir, 2)
+            OO_da(i, j, 3) = OO_da(i, j, 3) + phase_fac*OO_R(i, j, ir, 3)
           endif
-          if (present(OO_dadb)) then
-            ! same skip as before
-            if ((wigner_seitz%irvec(1, ir) .eq. 0) .and. (wigner_seitz%irvec(2, ir) .eq. 0) .and. &
-                (wigner_seitz%irvec(3, ir) .eq. 0) .and. (i .eq. j)) then
-              do a = 1, 3
-                do b = 1, 3
-                  OO_dadb(i, j, a, b) = OO_dadb(i, j, a, b) + &
-                                        cmplx_i*(wigner_seitz%crvec(b, ir) + &
-                                                 local_wannier_centres(b, j) &
-                                                 - local_wannier_centres(b, i))*phase_fac* &
-                                        (OO_R(i, j, ir, a) - local_wannier_centres(a, j))
-                enddo
+        endif
+        if (present(OO_dadb)) then
+          ! same skip as before
+          if ((wigner_seitz%irvec_pw90(1, ir) .eq. 0) .and. (wigner_seitz%irvec_pw90(2, ir) .eq. 0) .and. &
+              (wigner_seitz%irvec_pw90(3, ir) .eq. 0) .and. (i .eq. j)) then
+            do a = 1, 3
+              do b = 1, 3
+                OO_dadb(i, j, a, b) = OO_dadb(i, j, a, b) + &
+                                      cmplx_i*(wigner_seitz%crvec_pw90(b, ir) + &
+                                               wigner_seitz%wannier_centres_from_AA_R(b, j) &
+                                               - wigner_seitz%wannier_centres_from_AA_R(b, i))*phase_fac* &
+                                      (OO_R(i, j, ir, a) - wigner_seitz%wannier_centres_from_AA_R(a, j))
               enddo
+            enddo
 !           cycle
-            else
-              do a = 1, 3
-                do b = 1, 3
-                  OO_dadb(i, j, a, b) = OO_dadb(i, j, a, b) + &
-                                        cmplx_i*(wigner_seitz%crvec(b, ir) + &
-                                                 local_wannier_centres(b, j) &
-                                                 - local_wannier_centres(b, i))*phase_fac*OO_R(i, j, ir, a)
-                enddo
+          else
+            do a = 1, 3
+              do b = 1, 3
+                OO_dadb(i, j, a, b) = OO_dadb(i, j, a, b) + &
+                                      cmplx_i*(wigner_seitz%crvec_pw90(b, ir) + &
+                                               wigner_seitz%wannier_centres_from_AA_R(b, j) &
+                                               - wigner_seitz%wannier_centres_from_AA_R(b, i))* &
+                                      phase_fac*OO_R(i, j, ir, a)
               enddo
-            endif
+            enddo
           endif
-        enddo
-        enddo
-      endif
+        endif
+      enddo
+      enddo
     enddo
 
   end subroutine pw90common_fourier_R_to_k_vec_dadb_TB_conv
@@ -1890,8 +1598,8 @@ contains
   !================================================!
 
   !================================================!
-  subroutine wignerseitz(print_output, real_lattice, mp_grid, wigner_seitz, stdout, count_pts, &
-                         timer, error, comm)
+  subroutine wignerseitz(print_output, real_lattice, mp_grid, ws_region, wigner_seitz, stdout, &
+                         count_pts, timer, error, comm)
     !================================================!
     !! Calculates a grid of lattice vectors r that fall inside (and eventually
     !! on the surface of) the Wigner-Seitz supercell centered on the
@@ -1899,9 +1607,9 @@ contains
     !! mp_grid(1)*a_1, mp_grid(2)*a_2, and mp_grid(3)*a_3
     !================================================!
 
-    use w90_constants, only: dp
+    use w90_constants, only: eps8, dp
     use w90_io, only: io_stopwatch_start, io_stopwatch_stop
-    use w90_types, only: print_output_type, timer_list_type
+    use w90_types, only: print_output_type, timer_list_type, ws_region_type
     use w90_utility, only: utility_metric
     use w90_comms, only: w90_comm_type, mpirank
     use w90_postw90_types, only: wigner_seitz_type
@@ -1911,7 +1619,9 @@ contains
     ! ndegen(irpt)      Weight of the irpt-th point is 1/ndegen(irpt)
     ! nrpts             number of Wigner-Seitz grid points
 
+    implicit none
     ! arguments
+    type(ws_region_type), intent(in)    :: ws_region
     type(print_output_type), intent(in) :: print_output
     type(timer_list_type), intent(inout) :: timer
     type(w90_comm_type), intent(in) :: comm
@@ -1924,41 +1634,61 @@ contains
     real(kind=dp), intent(in) :: real_lattice(3, 3)
 
     ! local variables
-    integer       :: ndiff(3)
-    real(kind=dp) :: dist(125), tot, dist_min
+    integer       :: ierr, dist_dim
     integer       :: n1, n2, n3, i1, i2, i3, icnt, i, j, ir
-    real(kind=dp) :: real_metric(3, 3)
+    integer       :: ndiff(3)
     logical :: on_root = .false.
+    real(kind=dp), allocatable :: dist(:)
+    real(kind=dp) :: real_metric(3, 3)
+    real(kind=dp) :: tot, dist_min
+
     if (mpirank(comm) == 0) on_root = .true.
 
     if (print_output%timing_level > 1 .and. on_root) &
       call io_stopwatch_start('postw90_common: wigner_seitz', timer)
 
     call utility_metric(real_lattice, real_metric)
+
+    dist_dim = 1
+    do i = 1, 3
+      dist_dim = dist_dim*((ws_region%ws_search_size(i) + 1)*2 + 1)
+    end do
+    allocate (dist(dist_dim), stat=ierr)
+    if (ierr /= 0) then
+      call set_error_alloc(error, 'Error in allocating dist in wigner_seitz', comm)
+      return
+    endif
+
     ! The Wannier functions live in a periodic supercell of the real space unit
     ! cell. This supercell is mp_grid(i) unit cells long along each primitive
     ! translation vector a_i of the unit cell
     !
-    ! We loop over grid points r on a cell that is approx. 8 times
-    ! larger than this "primitive supercell."
+    ! We loop over grid points r on a unit cell that is (2*ws_search_size+1)**3 times
+    ! larger than this primitive supercell.
     !
     ! One of these points is in the W-S supercell if it is closer to R=0 than any
     ! of the other points R (where R are the translation vectors of the
-    ! supercell). In practice it is sufficient to inspect only 125 R-points.
+    ! supercell).
 
     ! In the end, nrpts contains the total number of grid points that have been
     ! found in the Wigner-Seitz cell
 
     wigner_seitz%nrpts = 0
-    do n1 = -mp_grid(1), mp_grid(1)
-      do n2 = -mp_grid(2), mp_grid(2)
-        do n3 = -mp_grid(3), mp_grid(3)
-          ! Loop over the 125 points R. R=0 corresponds to i1=i2=i3=0,
-          ! or icnt=63
+    ! Loop over the lattice vectors of the primitive cell
+    ! that live in a supercell which is (2*ws_search_size+1)**2
+    ! larger than the Born-von Karman supercell.
+    ! We need to find which among these live in the Wigner-Seitz cell
+    do n1 = -ws_region%ws_search_size(1)*mp_grid(1), ws_region%ws_search_size(1)*mp_grid(1)
+      do n2 = -ws_region%ws_search_size(2)*mp_grid(2), ws_region%ws_search_size(2)*mp_grid(2)
+        do n3 = -ws_region%ws_search_size(3)*mp_grid(3), ws_region%ws_search_size(3)*mp_grid(3)
+          ! Loop over the lattice vectors R of the Born-von Karman supercell
+          ! that contains all the points of the previous loop.
+          ! There are (2*(ws_search_size+1)+1)**3 points R. R=0 corresponds to
+          ! i1=i2=i3=0, or icnt=((2*(ws_search_size+1)+1)**3 + 1)/2
           icnt = 0
-          do i1 = -2, 2
-            do i2 = -2, 2
-              do i3 = -2, 2
+          do i1 = -ws_region%ws_search_size(1) - 1, ws_region%ws_search_size(1) + 1
+            do i2 = -ws_region%ws_search_size(2) - 1, ws_region%ws_search_size(2) + 1
+              do i3 = -ws_region%ws_search_size(3) - 1, ws_region%ws_search_size(3) + 1
                 icnt = icnt + 1
                 ! Calculate distance squared |r-R|^2
                 ndiff(1) = n1 - i1*mp_grid(1)
@@ -1975,12 +1705,12 @@ contains
             enddo
           enddo
           dist_min = minval(dist)
-          if (abs(dist(63) - dist_min) .lt. 1.e-7_dp) then
+          if (abs(dist((dist_dim + 1)/2) - dist_min) .lt. ws_region%ws_distance_tol**2) then
             wigner_seitz%nrpts = wigner_seitz%nrpts + 1
             if (.not. count_pts) then
               wigner_seitz%ndegen(wigner_seitz%nrpts) = 0
-              do i = 1, 125
-                if (abs(dist(i) - dist_min) .lt. 1.e-7_dp) &
+              do i = 1, dist_dim
+                if (abs(dist(i) - dist_min) .lt. ws_region%ws_distance_tol**2) &
                   wigner_seitz%ndegen(wigner_seitz%nrpts) = &
                   wigner_seitz%ndegen(wigner_seitz%nrpts) + 1
               end do
@@ -2000,6 +1730,12 @@ contains
       enddo
       !n1
     enddo
+    !
+    deallocate (dist, stat=ierr)
+    if (ierr /= 0) then
+      call set_error_dealloc(error, 'Error in deallocating dist wigner_seitz', comm)
+      return
+    end if
 
     if (count_pts) then
       if (print_output%timing_level > 1 .and. on_root) &
@@ -2015,6 +1751,8 @@ contains
           wigner_seitz%irvec(2, ir), wigner_seitz%irvec(3, ir), '  degeneracy: ', &
           wigner_seitz%ndegen(ir)
       enddo
+      write (stdout, '(1x,a,f12.3)') ' tot = ', tot
+      write (stdout, '(1x,a,i12)') ' mp_grid product = ', mp_grid(1)*mp_grid(2)*mp_grid(3)
     endif
     ! Check the "sum rule"
     tot = 0.0_dp
@@ -2025,14 +1763,187 @@ contains
       !
       tot = tot + 1.0_dp/real(wigner_seitz%ndegen(ir), dp)
     enddo
-    if (abs(tot - real(mp_grid(1)*mp_grid(2)*mp_grid(3), dp)) > 1.e-8_dp) then
+    if (abs(tot - real(mp_grid(1)*mp_grid(2)*mp_grid(3), dp)) > eps8) then
       call set_error_fatal(error, 'ERROR in wigner_seitz: error in finding Wigner-Seitz points', comm)
       return
     endif
     if (print_output%timing_level > 1 .and. on_root) &
       call io_stopwatch_stop('postw90_common: wigner_seitz', timer)
-
     return
   end subroutine wignerseitz
+
+  !=========================================================!
+  subroutine wigner_seitz_opt_setup(ws_distance, ws_region, wigner_seitz, num_wann, real_lattice, &
+                                    nrpts, error, comm)
+    !==========================================================================
+    !
+    !! If use_ws_distance = true, get list of all R vectors that appear in
+    !! irdist_ws and write them to irvec_pw90. Set the index map ir_ind_ws_to_pw90
+    !!
+    !! If use_ws_distance = false, copy irvec to irvec_pw90.
+    !
+    !==========================================================================
+
+    use w90_constants, only: dp
+    use w90_types, only: ws_region_type, ws_distance_type
+    use w90_comms, only: w90_comm_type
+    use w90_postw90_types, only: wigner_seitz_type
+
+    implicit none
+
+    type(ws_distance_type), intent(inout) :: ws_distance
+    type(ws_region_type), intent(in) :: ws_region
+    type(wigner_seitz_type), intent(inout) :: wigner_seitz
+    type(w90_error_type), allocatable, intent(out) :: error
+    type(w90_comm_type), intent(in) :: comm
+
+    real(kind=dp), intent(in) :: real_lattice(3, 3)
+    integer, intent(in) :: num_wann
+    integer, intent(in) :: nrpts
+    logical :: found
+    integer :: i, j, ideg, ir, jr, ierr, nrpts_found, max_ndeg, ivdum(3)
+    integer, allocatable :: irvec_found(:, :), irvec_temp(:, :)
+
+    if (ws_region%use_ws_distance) then
+
+      max_ndeg = maxval(ws_distance%ndeg)
+      allocate (wigner_seitz%ir_ind_ws_to_pw90(max_ndeg, num_wann, num_wann, nrpts), stat=ierr)
+      if (ierr /= 0) then
+        call set_error_alloc(error, 'Error in allocating ir_ind_ws_to_pw90 in wigner_seitz_opt_setup', comm)
+        return
+      endif
+      wigner_seitz%ir_ind_ws_to_pw90 = -1
+
+      ! find the set of R vectors from irdist_ws, removing duplicates
+      nrpts_found = 0
+      do ir = 1, nrpts
+        do j = 1, num_wann
+          do i = 1, num_wann
+            do ideg = 1, ws_distance%ndeg(i, j, ir)
+              ivdum = ws_distance%irdist(:, ideg, i, j, ir)
+
+              if (nrpts_found == 0) then
+                nrpts_found = 1
+                allocate (irvec_found(3, 1), stat=ierr)
+                if (ierr /= 0) then
+                  call set_error_alloc(error, 'Error in allocating irvec_found in wigner_seitz_opt_setup', comm)
+                  return
+                endif
+                irvec_found(:, 1) = ivdum
+
+                wigner_seitz%ir_ind_ws_to_pw90(ideg, i, j, ir) = 1
+
+              else
+                ! find if ivdum is already found
+                found = .false.
+                do jr = 1, nrpts_found
+                  if (all(ivdum == irvec_found(:, jr))) then
+                    wigner_seitz%ir_ind_ws_to_pw90(ideg, i, j, ir) = jr
+                    found = .true.
+                    exit
+                  endif
+                enddo
+
+                ! if not found, add ivdum to irvec_found
+                if (.not. found) then
+
+                  ! copy irvec_found to irvec_temp
+                  allocate (irvec_temp(3, nrpts_found), stat=ierr)
+                  if (ierr /= 0) then
+                    call set_error_alloc(error, 'Error in allocating irvec_temp in wigner_seitz_opt_setup', comm)
+                    return
+                  endif
+                  irvec_temp = irvec_found
+                  deallocate (irvec_found, stat=ierr)
+                  if (ierr /= 0) then
+                    call set_error_dealloc(error, 'Error in deallocating irvec_found in wigner_seitz_opt_setup', comm)
+                    return
+                  endif
+
+                  allocate (irvec_found(3, nrpts_found + 1), stat=ierr)
+                  if (ierr /= 0) then
+                    call set_error_alloc(error, 'Error in allocating irvec_found in wigner_seitz_opt_setup', comm)
+                    return
+                  endif
+                  irvec_found(:, 1:nrpts_found) = irvec_temp
+                  irvec_found(:, nrpts_found + 1) = ivdum
+                  deallocate (irvec_temp, stat=ierr)
+                  if (ierr /= 0) then
+                    call set_error_dealloc(error, 'Error in deallocating irvec_temp in wigner_seitz_opt_setup', comm)
+                    return
+                  endif
+
+                  nrpts_found = nrpts_found + 1
+
+                  wigner_seitz%ir_ind_ws_to_pw90(ideg, i, j, ir) = nrpts_found
+
+                endif ! found
+              endif ! nrpts_found == 0
+
+            enddo
+          enddo
+        enddo
+      enddo
+
+      wigner_seitz%nrpts_pw90 = nrpts_found
+
+      allocate (wigner_seitz%irvec_pw90(3, wigner_seitz%nrpts_pw90), stat=ierr)
+      if (ierr /= 0) then
+        call set_error_alloc(error, 'Error in allocating irvec_pw90 in wigner_seitz_opt_setup', comm)
+        return
+      endif
+      allocate (wigner_seitz%crvec_pw90(3, wigner_seitz%nrpts_pw90), stat=ierr)
+      if (ierr /= 0) then
+        call set_error_alloc(error, 'Error in allocating crvec_pw90 in wigner_seitz_opt_setup', comm)
+        return
+      endif
+
+      wigner_seitz%irvec_pw90 = irvec_found
+      do ir = 1, wigner_seitz%nrpts_pw90
+        wigner_seitz%crvec_pw90(:, ir) = matmul(transpose(real_lattice), real(wigner_seitz%irvec_pw90(:, ir), dp))
+      enddo
+
+    else ! .not. use_ws_distance
+      allocate (wigner_seitz%irvec_pw90(3, wigner_seitz%nrpts_pw90), stat=ierr)
+      if (ierr /= 0) then
+        call set_error_alloc(error, 'Error in allocating irvec_pw90 in wigner_seitz_opt_setup', comm)
+        return
+      endif
+      allocate (wigner_seitz%crvec_pw90(3, wigner_seitz%nrpts_pw90), stat=ierr)
+      if (ierr /= 0) then
+        call set_error_alloc(error, 'Error in allocating crvec_pw90 in wigner_seitz_opt_setup', comm)
+        return
+      endif
+
+      wigner_seitz%irvec_pw90 = wigner_seitz%irvec
+      wigner_seitz%crvec_pw90 = wigner_seitz%crvec
+      wigner_seitz%nrpts_pw90 = wigner_seitz%nrpts
+    endif ! use_ws_distance
+
+    ! Check degeneracy factor ndegen for R = 0 is 1
+    if (wigner_seitz%ndegen(wigner_seitz%rpt_origin) /= 1) then
+      call set_error_fatal(error, 'ndegen for R=0 is not 1.', comm)
+      return
+    endif
+
+    ! Check degeneracy factor ws_distance%ndeg for a Wannier function with itself,
+    ! i.e. R = 0 and i = j, is 1.
+    if (ws_region%use_ws_distance) then
+      do ir = 1, nrpts
+        do i = 1, num_wann
+          do ideg = 1, ws_distance%ndeg(i, i, ir)
+            ivdum = ws_distance%irdist(:, ideg, i, i, ir)
+            if (all(ivdum == 0)) then
+              if (ws_distance%ndeg(i, i, ir) /= 1) then
+                call set_error_fatal(error, 'ws_distance%ndeg for R=0 and i=j is not 1.', comm)
+                return
+              endif
+            endif
+          enddo
+        enddo
+      enddo
+    endif
+
+  end subroutine wigner_seitz_opt_setup
 
 end module w90_postw90_common

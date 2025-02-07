@@ -182,6 +182,7 @@ module w90_wannier90_types
     real(kind=dp) :: conv_tol = 1.0e-10_dp
     integer :: conv_window
     type(guiding_centres_type) :: guiding_centres
+    logical :: use_ss_functional = .false.
     real(kind=dp) :: fixed_step = -999.0_dp
     real(kind=dp) :: trial_step = 2.0_dp
     logical :: precond = .false.
@@ -273,8 +274,6 @@ module w90_wannier90_types
     logical :: have_ham_k = .false.
     logical :: have_ham_r = .false.
     logical :: have_translated = .false.
-    logical :: hr_written = .false.
-    logical :: tb_written = .false.
     logical :: use_translation = .false.
   end type ham_logical_type
 

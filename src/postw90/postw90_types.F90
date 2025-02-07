@@ -160,6 +160,8 @@ module w90_postw90_types
     logical :: sc_use_eta_corr = .true.
     logical :: wanint_kpoint_file = .false. ! also postw90/spin, postw90/dos, postw90.F90
     logical :: transl_inv = .false. !also used in postw90/get_oper, postw90/gyrotropic
+    logical :: transl_inv_full = .false.
+    logical :: guiding_centres = .false.
     real(kind=dp) :: kdotp_kpoint(3) = 0.0_dp
     integer, allocatable :: kdotp_bands(:)
     integer :: kubo_nfreq
@@ -248,6 +250,11 @@ module w90_postw90_types
     integer, allocatable       :: ndegen(:)
     integer                    :: nrpts
     integer                    :: rpt_origin
+    integer, allocatable       :: ir_ind_ws_to_pw90(:, :, :, :)
+    integer, allocatable       :: irvec_pw90(:, :)
+    real(kind=dp), allocatable :: crvec_pw90(:, :)
+    integer                    :: nrpts_pw90
+    real(kind=dp), allocatable :: wannier_centres_from_AA_R(:, :)
   end type wigner_seitz_type
 
   type kpoint_dist_type ! kpoints from file
