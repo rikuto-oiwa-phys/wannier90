@@ -205,25 +205,3 @@
     !wannier_plot = .true.
     !wannier_plot_supercell = 3
     ```
-
-- Recalculate CWFs using PAOs in `tutorials/tutorial_35/ext_proj/Si.dat`,
-  including 3d projectors.
-  Change the number of bands in `silicon.nscf`
-    ```vi title="Input file"
-  nbnd = 12 => 40
-  ```
-  and
-  `silicon.win`
-  ```vi title="Input file"
-  num_bands = 12 => 40
-  ```
-  Change the number of Wannier functions in `silicon.win`
-  ```vi title="Input file"
-  num_wann = 8 => 18
-  ```
-  Add the following lines in `silicon.pw2wan`
-  ```vi title="Input file"
-  atom_proj_ext = .true.
-  atom_proj_dir = '../tutorial35/ext_proj'
-  ```
-  Recompute 1 ~ 12 step.
