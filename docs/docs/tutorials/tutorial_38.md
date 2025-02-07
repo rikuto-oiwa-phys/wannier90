@@ -1,4 +1,4 @@
-# 36: Silicon &#151; Closest Wannier functions
+# 38: Silicon &#151; Closest Wannier functions
 
 - Outline: Compute the closest Wannier functions (CWFs) and
     the Wannier interpolated band structure of
@@ -6,8 +6,8 @@
     using hydrogenic atomic $s$ and $p$ orbitals.
     For the detail of the theoretical background, see Ref.[@ozaki-prb24].
 
-- Directory: `tutorials/tutorial36/` *Files can be downloaded from
-    [here](https://github.com/wannier-developers/wannier90/tree/develop/tutorials/tutorial36)*
+- Directory: `tutorials/tutorial38/` *Files can be downloaded from
+    [here](https://github.com/wannier-developers/wannier90/tree/develop/tutorials/tutorial38)*
 
 - Input files
 

@@ -1,4 +1,4 @@
-# 37: Silicon &#151; CWFs parameters from projectability
+# 39: Silicon &#151; CWFs parameters from projectability
 
 - Outline: Compute the closest Wannier functions (CWFs) and
     the Wannier interpolated band structure of
@@ -12,8 +12,8 @@
     The number of CWFs is given by the number of PAOs in the
     pseudopotential, $8$ in this case.
 
-- Directory: `tutorials/tutorial37/` *Files can be downloaded from
-    [here](https://github.com/wannier-developers/wannier90/tree/develop/tutorials/tutorial37)*
+- Directory: `tutorials/tutorial39/` *Files can be downloaded from
+    [here](https://github.com/wannier-developers/wannier90/tree/develop/tutorials/tutorial39)*
 
 - Input files
 
