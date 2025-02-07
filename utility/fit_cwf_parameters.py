@@ -170,7 +170,7 @@ def fit_cwf_parameters(seedname):
     for ekn, pkn in zip(ek, pk):
         wkn_fit = cwf_window_function(ekn, mu_min_opt, mu_max_fit, sigma_min_opt, sigma_max_opt)
         wkn_opt = cwf_window_function(ekn, mu_min_opt, mu_max_opt, sigma_min_opt, sigma_max_opt)
-        msg += " {0[0]:18.15f}    {0[1]:18.15f}    {0[2]:18.15f}    {0[2]:18.15f} \n".format([ekn, pkn, wkn_fit, wkn_opt])
+        msg += " {0[0]:18.15f}    {0[1]:18.15f}    {0[2]:18.15f}    {0[3]:18.15f} \n".format([ekn, pkn, wkn_fit, wkn_opt])
 
     f = open('p_w_vs_e.dat', 'w')
     f.write(msg)
