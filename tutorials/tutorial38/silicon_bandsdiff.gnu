@@ -1,0 +1,33 @@
+#!/usr/bin/env gnuplot
+set terminal pdf enhanced color dashed lw 1 size 6in,6in
+set output "silicon_band.pdf"
+set size ratio 1
+
+unset key 
+unset grid 
+lwidth = 3 
+set xrange [:0.8313582233818886] 
+set yrange [-14.320111665405602:12.503143374074934] 
+set tics font 'Times Roman, 24'
+set lmargin 7
+
+set arrow from  0,  -14.320111665405602 to 0, 12.503143374074934 nohead 
+set arrow from  0.18526725378224762,  -14.320111665405602 to 0.18526725378224762, 12.503143374074934 nohead 
+set arrow from  0.25076911952286546,  -14.320111665405602 to 0.25076911952286546, 12.503143374074934 nohead 
+set arrow from  0.44727471674472036,  -14.320111665405602 to 0.44727471674472036, 12.503143374074934 nohead 
+set arrow from  0.6077208650095247,  -14.320111665405602 to 0.6077208650095247, 12.503143374074934 nohead 
+set arrow from  0.7387245964907632,  -14.320111665405602 to 0.7387245964907632, 12.503143374074934 nohead 
+set arrow from  0.8313582233818886,  -14.320111665405602 to 0.8313582233818886, 12.503143374074934 nohead 
+set xtics ('{/Symbol G}' 0,'X' 0.18526725378224762,'U|K' 0.25076911952286546,'{/Symbol G}' 0.44727471674472036,'L' 0.6077208650095247,'W' 0.7387245964907632,'X' 0.8313582233818886,) 
+
+ef = 6.3861 
+a = 5.397607939799999 
+
+
+plot \
+'silicon.band.gnu' u ($1/a):($2-ef) w l lw lwidth lc 'dark-grey', \
+'silicon_band.dat' u ($1/(2*pi)):($2-ef) w l lw lwidth dt (3,1) lc 'salmon', \
+0.0 lw 0.5 dt (2,1) lc 'black'
+
+
+

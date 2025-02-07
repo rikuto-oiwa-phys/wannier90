@@ -31,7 +31,7 @@ silicon.nscf \
 silicon.pw2wan \
 silicon.scf \
 silicon.win \
-plot_band.gnu \
+silicon_bandsdiff.gnu \
 
 default:
 	@echo "Usage: make clean"
@@ -61,5 +61,5 @@ test:
 	sed "/cwf_sigma_max/s/^cwf_sigma_max.*$/cwf_sigma_max  = ${SIGMAX}/g" silicon.win > temp.win && mv temp.win silicon.win ; \
 	sed "/cwf_sigma_min/s/^cwf_sigma_min.*$/cwf_sigma_min  = ${SIGMIN}/g" silicon.win > temp.win && mv temp.win silicon.win ; \
         $(MPI_CMD) wannier90.x silicon
-	./plot_band.gnu
+	./silicon_bandsdiff.gnu
 	@echo "All calculations finished successfully"

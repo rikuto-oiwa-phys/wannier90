@@ -29,7 +29,7 @@ silicon.nscf \
 silicon.pw2wan \
 silicon.scf \
 silicon.win \
-plot_band.gnu
+silicon_bandsdiff.gnu
 
 default:
 	@echo "Usage: make clean"
@@ -50,5 +50,5 @@ test:
 	wannier90.x -pp silicon
 	$(MPI_CMD) pw2wannier90.x < silicon.pw2wan > pw2wan.out
 	$(MPI_CMD) wannier90.x silicon
-	./plot_band.gnu
+	./silicon_bandsdiff.gnu
 	@echo "All calculations finished successfully"

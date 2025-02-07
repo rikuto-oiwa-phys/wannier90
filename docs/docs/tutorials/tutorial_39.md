@@ -29,7 +29,7 @@
 
     - `silicon.win` *The input file for `wannier90.x`*
 
-    - `plot_band.gnu` *The gnuplot script to compare DFT and Wannier bands*
+    - `silicon_bandsdiff.gnu` *The gnuplot script to compare DFT and Wannier bands*
 
 &nbsp;
 
